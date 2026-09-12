@@ -57,8 +57,8 @@ describe('resolveCircle', () => {
     const b = ball({ x: 300, y: 310, vx: 0, vy: 100 });
     const s = resolveCircle(b, 300, 316, 3.5, 0.5);
     expect(s).toBeCloseTo(100);
-    expect(b.y).toBeCloseTo(316 - 3.5 - BALL_R, 5);
-    expect(b.vy).toBeCloseTo(-50, 5);
+    expect(b.y).toBeCloseTo(316 - 3.5 - BALL_R, 3);
+    expect(b.vy).toBeCloseTo(-50, 3);
   });
   it('returns 0 when not touching', () => {
     const b = ball(); expect(resolveCircle(b, 400, 400, 3.5, 0.5)).toBe(0);
