@@ -21,7 +21,7 @@ only. Framework-free core so both delivery targets share one codebase.
 ## 3. Architecture
 
 ```
-pachinko/                      pnpm workspace root, the game package
+pachinko/                      npm workspace root, the game package
   src/core/                    pure TS, no DOM, Node-testable
     rng.ts                     seeded PRNG (mulberry32 or xoshiro128**)
     board.ts                   board geometry types + per-machine layouts
@@ -194,7 +194,7 @@ prop so an API-backed one can be swapped in later.
 
 ## 10. Delivery
 
-- **Standalone:** `pnpm build:standalone` → `dist/pachinko.html`, everything
+- **Standalone:** `npm run build:standalone` → `dist/pachinko.html`, everything
   inlined, opens from a file URL.
 - **Next.js:** `apps/web` route `/play` renders the game via dynamic import
   with server rendering disabled; passes the storage adapter.
@@ -203,7 +203,7 @@ prop so an API-backed one can be swapped in later.
 
 ## 11. Quality bar
 
-Stack: TypeScript, Vite, Vitest, Playwright, pnpm.
+Stack: TypeScript, Vite, Vitest, Playwright, npm workspaces (pnpm is not installed on the Mac).
 
 Tests that gate "done":
 - Core units: physics resolution vs pins/walls/segments, windmill
