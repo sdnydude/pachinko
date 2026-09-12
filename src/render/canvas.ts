@@ -39,6 +39,18 @@ export class Renderer {
     if (this.cel) ctx.drawImage(this.cel, 0, 0, BOARD_W, BOARD_H);
     else { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, BOARD_W, BOARD_H); }
 
+    // solids (bezel outlines, warp walls and funnel): faint lines over the cel so a bounce off them reads as a surface
+    ctx.lineCap = 'round';
+    for (const g of L.solids.segments) {
+      ctx.globalAlpha = 0.45; ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(g.ax + 1, g.ay + 1); ctx.lineTo(g.bx + 1, g.by + 1); ctx.stroke();
+      ctx.globalAlpha = 0.55; ctx.strokeStyle = P.panelAccent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(g.ax, g.ay); ctx.lineTo(g.bx, g.by); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.35; ctx.strokeStyle = P.panelAccent; ctx.lineWidth = 1.5;
+    for (const c of L.solids.circles) { ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+
     // pins
     for (let i = 0; i < L.pins.length; i++) {
       const p = L.pins[i]!;

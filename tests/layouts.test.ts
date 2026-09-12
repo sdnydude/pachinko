@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { MACHINES, MACHINE_ORDER } from '../src/core/machine';
 import { BOARD_W, BOARD_H, FIELD_LEFT, PIN_R, inRect, near, type Segment } from '../src/core/board';
+import { Game, DT_STEPS } from '../src/core/game';
+import type { Ball } from '../src/core/physics';
 
 const distToSegment = (x: number, y: number, s: Segment) => {
   const ex = s.bx - s.ax, ey = s.by - s.ay; const t = Math.min(1, Math.max(0, ((x - s.ax) * ex + (y - s.ay) * ey) / (ex * ex + ey * ey)));
@@ -45,6 +47,14 @@ describe('machine layouts', () => {
   it('tulip counts: hana-fan 4, others 2 win tulips', () => {
     const tulips = (id: keyof typeof MACHINES) => MACHINES[id].layout.catchers.filter(c => c.tulip && c.kind === 'win').length;
     expect(tulips('hana-fan')).toBe(4); expect(tulips('big-wave')).toBe(2); expect(tulips('raijin')).toBe(2);
+  });
+  it('big-wave: a ball dropped straight into the top warp is caught by the electric chucker', () => {
+    const g = new Game(MACHINES['big-wave'], 1);
+    const b: Ball = { id: 999, x: 320, y: 100, px: 320, py: 100, vx: 0, vy: 0, age: 0 };
+    (g as unknown as { balls: Ball[] }).balls.push(b);
+    let caught = false;
+    for (let i = 0; i < DT_STEPS(5) && !caught; i++) for (const e of g.step()) if (e.type === 'catch' && e.catcherId === 'e-chucker') caught = true;
+    expect(caught).toBe(true);
   });
   it('big-wave attacker is on the right, others center', () => {
     expect(MACHINES['big-wave'].attackerSide).toBe('right');
