@@ -23,6 +23,17 @@ for (const m of machines) for (const [name, vp] of Object.entries(sizes)) {
   });
 }
 
+test('reset restores the bank to 100', async ({ page }) => {
+  await page.goto('/?m=raijin&seed=7');
+  await page.waitForTimeout(500);
+  const box = (await page.locator('.pk-canvas').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down(); await page.waitForTimeout(200); await page.mouse.up();
+  await expect(page.locator('[data-f=bank]')).toHaveText('0099');
+  await page.locator('[data-a=reset]').click();
+  await expect(page.locator('[data-f=bank]')).toHaveText('0100');
+});
+
 test('mute persists across reload', async ({ page }) => {
   await page.goto('/?m=raijin&seed=7');
   await page.keyboard.press('m');

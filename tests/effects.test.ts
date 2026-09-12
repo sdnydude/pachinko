@@ -27,6 +27,16 @@ describe('Effects', () => {
     fx.onEvents([{ type: 'pin', index: 0, x: 1, y: 1, speed: 100 }], g.snapshot());
     expect(fx.particleCount).toBe(0);
   });
+  it('reduced can be toggled live', () => {
+    const fx = new Effects(THEMES.raijin, MACHINES.raijin.layout);
+    const g = new Game(MACHINES.raijin, 1); const s = g.snapshot();
+    fx.reduced = true;
+    fx.onEvents([{ type: 'pin', index: 0, x: 1, y: 1, speed: 100 }], s);
+    expect(fx.particleCount).toBe(0);
+    fx.reduced = false;
+    fx.onEvents([{ type: 'pin', index: 0, x: 1, y: 1, speed: 100 }], s);
+    expect(fx.particleCount).toBe(3);
+  });
   it('reduced motion suppresses pin flash and lamp chase', () => {
     const fx = new Effects(THEMES.raijin, MACHINES.raijin.layout, { reducedMotion: true });
     const g = new Game(MACHINES.raijin, 1); const s = g.snapshot();

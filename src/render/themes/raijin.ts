@@ -2,7 +2,7 @@ import type { Theme } from '../theme';
 import { RAIJIN_CEL } from '../cels/raijin';
 import { svgDataUrl } from '../cel';
 export const RAIJIN_THEME: Theme = {
-  id: 'raijin', name: '雷神 RAIJIN', celUrl: svgDataUrl(RAIJIN_CEL),
+  id: 'raijin', name: '雷神 RAIJIN', shortName: 'RAIJIN', celUrl: svgDataUrl(RAIJIN_CEL),
   palette: {
     accent: '#ffe600', accent2: '#c9302c', pin: '#d4a017', pinHi: '#fff0a8', jewel: '#ff3b3b', ball: '#f0f0f0', ballHi: '#ffffff',
     reelBg: '#fff3e0', reelFg: '#111111', reelHit: '#c9302c', tulipWing: '#d4a017', tulipBody: '#c9302c',

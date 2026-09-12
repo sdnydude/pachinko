@@ -1,5 +1,14 @@
 export interface DialTarget { setHeld(held: boolean): void; trim(delta: number): void }
 
+/** True for shortcuts the game must leave alone: modifier combos, and keys aimed at a focused form control (so Space activates a button). */
+export function ignoreKey(e: KeyboardEvent): boolean {
+  if (e.metaKey || e.ctrlKey || e.altKey) return true;
+  const t = e.target;
+  return t instanceof HTMLElement && /^(BUTTON|INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+}
+
+const TRIM_DEAD_ZONE = 8;   // px of vertical drag before a trim is applied
+
 export class Dial {
   onActivity?: () => void;
   private pointerId: number | null = null;
@@ -17,10 +26,10 @@ export class Dial {
     if (this.keyboard) { window.addEventListener('keydown', this.key); window.addEventListener('keyup', this.key); }
   }
   private down = (e: PointerEvent) => { if (this.pointerId !== null) return; this.pointerId = e.pointerId; this.lastY = e.clientY; this.zone.setPointerCapture(e.pointerId); this.target.setHeld(true); this.onActivity?.(); };
-  private move = (e: PointerEvent) => { if (e.pointerId !== this.pointerId) return; const dy = this.lastY - e.clientY; if (Math.abs(dy) >= 3) { this.target.trim(dy * this.trimPerPixel); this.lastY = e.clientY; } };
+  private move = (e: PointerEvent) => { if (e.pointerId !== this.pointerId) return; const dy = this.lastY - e.clientY; if (Math.abs(dy) >= TRIM_DEAD_ZONE) { this.target.trim(dy * this.trimPerPixel); this.lastY = e.clientY; } };
   private up = (e: PointerEvent) => { if (e.pointerId !== this.pointerId) return; this.pointerId = null; this.target.setHeld(false); };
   private key = (e: KeyboardEvent) => {
-    if (e.repeat) return;
+    if (e.repeat || ignoreKey(e)) return;
     if (e.code === 'Space') { e.preventDefault(); const down = e.type === 'keydown'; if (down !== this.keyHeld) { this.keyHeld = down; this.target.setHeld(down); this.onActivity?.(); } }
     if (e.type === 'keydown' && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) { e.preventDefault(); this.target.trim(e.code === 'ArrowUp' ? 0.05 : -0.05); this.onActivity?.(); }
   };

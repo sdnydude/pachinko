@@ -1,6 +1,6 @@
 import type { MachineId } from '../core/machine';
 export interface Theme {
-  id: MachineId; name: string; celUrl: string;
+  id: MachineId; name: string; shortName: string; celUrl: string;
   palette: {
     accent: string; accent2: string; pin: string; pinHi: string; jewel: string; ball: string; ballHi: string;
     reelBg: string; reelFg: string; reelHit: string; tulipWing: string; tulipBody: string; windmill: string[];

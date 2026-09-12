@@ -2,7 +2,7 @@ import type { Theme } from '../theme';
 import { HANA_FAN_CEL } from '../cels/hana-fan';
 import { svgDataUrl } from '../cel';
 export const HANA_FAN_THEME: Theme = {
-  id: 'hana-fan', name: '花扇 HANA FAN', celUrl: svgDataUrl(HANA_FAN_CEL),
+  id: 'hana-fan', name: '花扇 HANA FAN', shortName: 'HANA FAN', celUrl: svgDataUrl(HANA_FAN_CEL),
   palette: {
     accent: '#d8352b', accent2: '#c9a24a', pin: '#e2be62', pinHi: '#fff8dc', jewel: '#d8352b', ball: '#ececec', ballHi: '#ffffff',
     reelBg: '#fff8dc', reelFg: '#3a1a0a', reelHit: '#b3261e', tulipWing: '#f4c542', tulipBody: '#e0574a',

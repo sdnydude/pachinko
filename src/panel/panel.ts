@@ -1,13 +1,19 @@
 import type { Snapshot } from '../core/game';
 import { MACHINES, MACHINE_ORDER, type MachineId } from '../core/machine';
 import type { Theme } from '../render/theme';
+import { THEMES } from '../render/themes/index';
 
-export interface PanelCallbacks { onSwitch(id: MachineId): void; onMute(m: boolean): void; onBuyIn(): void; onReset(): void }
+export interface PanelCallbacks { onSwitch(id: MachineId): void; onSwipe(dir: -1 | 1): void; onMute(m: boolean): void; onBuyIn(): void; onReset(): void }
 
 const LAMPS = 40;
+const SWIPE_PX = 40;
+/** Tiny cabinet silhouette for a machine tab: rounded cabinet in the theme wall color, lighter board rect in its panel accent. */
+const cabinet = (t: Theme) => `<svg class="cab" viewBox="0 0 18 24" width="18" height="24" aria-hidden="true"><rect x="1" y="1" width="16" height="22" rx="3" fill="${t.palette.wall}" stroke="${t.palette.panelAccent}" stroke-width="1.5"/><rect x="4" y="4" width="10" height="12" rx="1.5" fill="${t.palette.panelAccent}"/><rect x="5" y="19" width="8" height="2" rx="1" fill="${t.palette.panelAccent}" opacity=".7"/></svg>`;
+
 export class Panel {
   readonly dialEl: HTMLElement;
   private el: Record<string, HTMLElement> = {};
+  private tabs: HTMLButtonElement[];
   private theme!: Theme;
   private lastAnnounce = '';
   private lastBank = -1;
@@ -15,7 +21,7 @@ export class Panel {
     root.insertAdjacentHTML('afterbegin', `<div class="pk-marquee" aria-hidden="true">${'<span class="lamp"></span>'.repeat(LAMPS)}</div>`);
     root.insertAdjacentHTML('beforeend', `
       <div class="pk-panel">
-        <div class="pk-tabs" role="tablist" aria-label="Machine">${MACHINE_ORDER.map(id => `<button role="tab" data-id="${id}" aria-pressed="false" title="${MACHINES[id].name}">${MACHINES[id].name.replace(/^\S+\s/, '')}</button>`).join('')}</div>
+        <div class="pk-tabs" role="tablist" aria-label="Machine">${MACHINE_ORDER.map(id => `<button role="tab" data-id="${id}" aria-selected="false" title="${MACHINES[id].name}">${cabinet(THEMES[id])}<span>${THEMES[id].shortName}</span></button>`).join('')}</div>
         <div class="pk-strip">
           <div class="pk-reels" aria-hidden="true"><span class="reel">7</span><span class="reel">7</span><span class="reel">7</span></div>
           <div class="pk-bank"><div class="pk-label">Bank</div><div class="pk-num" data-f="bank">0</div></div>
@@ -27,12 +33,32 @@ export class Panel {
       </div>
       <div class="pk-live" aria-live="polite" data-f="live"></div>`);
     this.dialEl = root.querySelector('.pk-dial')!;
-    for (const b of root.querySelectorAll<HTMLButtonElement>('.pk-tabs button')) b.onclick = () => cb.onSwitch(b.dataset.id as MachineId);
-    root.querySelector<HTMLButtonElement>('[data-a=mute]')!.onclick = (e) => { const b = e.currentTarget as HTMLButtonElement; const m = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(m)); cb.onMute(m); };
+    this.tabs = [...root.querySelectorAll<HTMLButtonElement>('.pk-tabs button')];
+    for (const b of this.tabs) b.onclick = () => { if (b.getAttribute('aria-disabled') !== 'true') cb.onSwitch(b.dataset.id as MachineId); };
+    this.el.mute = root.querySelector('[data-a=mute]')!;
+    this.el.mute.onclick = (e) => { const b = e.currentTarget as HTMLButtonElement; const m = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(m)); cb.onMute(m); };
     root.querySelector<HTMLButtonElement>('[data-a=reset]')!.onclick = () => cb.onReset();
     for (const e of root.querySelectorAll<HTMLElement>('[data-f]')) this.el[e.dataset.f!] = e;
     this.el.reels = root.querySelector('.pk-reels')!;
     this.el.marquee = root.querySelector('.pk-marquee')!;
+    this.el.tabs = root.querySelector('.pk-tabs')!;
+    this.el.strip = root.querySelector('.pk-strip')!;
+    this.swipe(this.el.tabs); this.swipe(this.el.strip);
+  }
+
+  /** Horizontal drag of SWIPE_PX or more on a row switches machine; capturing the pointer keeps the tab underneath from also clicking. */
+  private swipe(zone: HTMLElement): void {
+    let id: number | null = null, x0 = 0;
+    zone.addEventListener('pointerdown', e => { id = e.pointerId; x0 = e.clientX; });
+    zone.addEventListener('pointermove', e => {
+      if (e.pointerId !== id) return;
+      const dx = e.clientX - x0;
+      if (Math.abs(dx) < SWIPE_PX) return;
+      id = null; zone.setPointerCapture(e.pointerId);
+      if (this.el.tabs!.firstElementChild?.getAttribute('aria-disabled') !== 'true') this.cb.onSwipe(dx < 0 ? 1 : -1);
+    });
+    const end = (e: PointerEvent) => { if (e.pointerId === id) id = null; };
+    zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   }
 
   setTheme(theme: Theme, id: MachineId): void {
@@ -42,13 +68,14 @@ export class Panel {
     const s = (this.root.parentElement ?? this.root).style;
     s.setProperty('--pk-accent', P.panelAccent); s.setProperty('--pk-panel-bg', P.panelBg); s.setProperty('--pk-panel-fg', P.panelFg);
     s.setProperty('--pk-wall', P.wall); s.setProperty('--pk-display', theme.fonts.display); s.setProperty('--pk-body', theme.fonts.body);
-    for (const b of this.root.querySelectorAll<HTMLButtonElement>('.pk-tabs button')) b.setAttribute('aria-pressed', String(b.dataset.id === id));
+    for (const b of this.tabs) b.setAttribute('aria-selected', String(b.dataset.id === id));
     this.el.marquee!.querySelectorAll<HTMLElement>('.lamp').forEach((l, i) => l.style.setProperty('--lamp', P.lamps[i % P.lamps.length]!));
   }
 
   update(s: Snapshot, lampPhase: number, lampSpeed: string, muted: boolean): void {
     const reels = this.el.reels!.children;
     for (let i = 0; i < 3; i++) { const r = reels[i] as HTMLElement; r.textContent = String(s.reelDigits[i]); r.className = `reel${s.reelSpinning[i] ? ' spin' : ''}${!s.reelSpinning[i] && s.reelDigits[i] === 7 ? ' hit' : ''}`; }
+    this.el.reels!.classList.toggle('reach', s.phase === 'reach');
     this.el.bank!.textContent = String(s.bank).padStart(4, '0');
     this.el.best!.textContent = String(s.bestSession).padStart(4, '0');
     let status = '';
@@ -59,7 +86,9 @@ export class Panel {
     if (this.el.status!.innerHTML !== status) this.el.status!.innerHTML = status;
     this.dialEl.style.setProperty('--strength', s.dial.strength.toFixed(3));
     this.dialEl.setAttribute('aria-valuenow', String(Math.round(s.dial.strength * 100)));
-    this.root.querySelector('[data-a=mute]')!.setAttribute('aria-pressed', String(muted));
+    this.el.mute!.setAttribute('aria-pressed', String(muted));
+    const locked = String(s.phase === 'jackpot');
+    for (const b of this.tabs) if (b.getAttribute('aria-disabled') !== locked) b.setAttribute('aria-disabled', locked);
     // lamps
     const lamps = this.el.marquee!.children; const step = lampSpeed === 'rainbow' ? 1 : 4;
     const on = Math.floor(lampPhase * 8);
