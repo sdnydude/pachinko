@@ -6,7 +6,7 @@ import { DT } from './physics';
 export interface SoakResult {
   machine: MachineId; strength: number; balls: number; spent: number; returned: number; returnRate: number;
   maxInFlight: number; maxAge: number; nan: boolean; oob: boolean; jackpots: number;
-  /** `catch` events per catcher id (jackpot attacker catches are not included). */
+  /** `catch` events per catcher id, free balls included (every soak shot is free); jackpot attacker catches are not counted. */
   catches: Record<string, number>;
 }
 

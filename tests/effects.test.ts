@@ -126,6 +126,20 @@ describe('Synth cap', () => {
     expect(clicks).toBeLessThanOrEqual(24);                  // the cap still holds for the 80 click requests (12/s)
     synth.dispose();
   });
+  it('mute stops the tension ticks', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'performance'] });
+    vi.stubGlobal('AudioContext', FakeAudioContext); vi.stubGlobal('window', globalThis); FakeAudioContext.created = 0;
+    const synth = new Synth(SOUND_SETS.raijin); synth.resume();
+    synth.onEvents([{ type: 'reelStop', reel: 1, digit: 7, tension: true }]);
+    expect(FakeAudioContext.created).toBe(1);                // the reel-stop tick itself
+    vi.advanceTimersByTime(300);
+    expect(FakeAudioContext.created).toBe(4);                // ticks at 100/200/300 ms
+    synth.setMuted(true);
+    expect((synth as unknown as { ticks: number }).ticks).toBe(0); // interval cleared, not merely silenced
+    vi.advanceTimersByTime(300);
+    expect(FakeAudioContext.created).toBe(4);                // no further tick oscillators after mute
+    synth.dispose();
+  });
   it('a 4-note arp plays all four notes against a full window', () => {
     vi.stubGlobal('AudioContext', FakeAudioContext); FakeAudioContext.created = 0;
     const synth = new Synth(SOUND_SETS.raijin); synth.resume();

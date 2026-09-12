@@ -11,7 +11,7 @@ export class Synth {
   private ticks = 0;   // interval id for the third-reel tension ticks
   constructor(private set: SoundSet) {}
   setSet(set: SoundSet) { this.set = set; this.stopLoop(); this.stopTicks(); }
-  setMuted(m: boolean) { this.muted = m; if (m) this.stopLoop(); }
+  setMuted(m: boolean) { this.muted = m; if (m) { this.stopLoop(); this.stopTicks(); } }
   /** Call from a user gesture once so the AudioContext can start. */
   resume() { if (!this.ctx) this.ctx = new AudioContext(); if (this.ctx.state === 'suspended') void this.ctx.resume(); }
   dispose(): void { this.stopLoop(); this.stopTicks(); if (this.ctx) { void this.ctx.close(); this.ctx = null; } }
