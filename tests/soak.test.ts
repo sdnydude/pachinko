@@ -35,3 +35,14 @@ describe('balance', () => {
     });
   }
 }, 120_000);
+
+/** Big Wave's halves: at 0.9 both side tulips must see traffic (D5 left tulip-r at ~0.8 % — this guards the floor). */
+describe('coverage', () => {
+  it('big-wave @ 0.9: tulip-l and tulip-r each catch ≥ 0.4 % of fired balls (mean of seeds 5/2026)', () => {
+    const runs = [5, 2026].map(seed => runSoak('big-wave', { balls: 2000, strength: 0.9, seed }));
+    const share = (id: string) => runs.reduce((a, r) => a + (r.catches[id] ?? 0) / r.balls, 0) / runs.length;
+    const l = share('tulip-l'), r = share('tulip-r');
+    console.log(`big-wave @0.9 tulip-l ${(l * 100).toFixed(2)} % tulip-r ${(r * 100).toFixed(2)} % (${runs.map(x => `${x.catches['tulip-l'] ?? 0}/${x.catches['tulip-r'] ?? 0}`).join(', ')})`);
+    expect(l).toBeGreaterThanOrEqual(0.004); expect(r).toBeGreaterThanOrEqual(0.004);
+  });
+}, 60_000);

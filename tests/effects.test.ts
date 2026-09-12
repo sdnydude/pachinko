@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Effects, MAX_PARTICLES } from '../src/render/effects';
 import { THEMES } from '../src/render/themes/index';
 import { MACHINES } from '../src/core/machine';
@@ -84,32 +84,59 @@ class FakeAudioContext {
 }
 
 describe('Synth cap', () => {
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  const catches = () => Array.from({ length: 50 }, () => ({ type: 'catch' as const, catcherId: 'win-l', kind: 'win' as const, payout: 5, free: false, x: 160, y: 700 }));
   it('schedules at most 12 beeps per second across 50 catch chimes (every arpeggio note counts)', () => {
     vi.stubGlobal('AudioContext', FakeAudioContext); FakeAudioContext.created = 0;
     const synth = new Synth(SOUND_SETS.raijin); synth.resume();
-    const ev = Array.from({ length: 50 }, () => ({ type: 'catch' as const, catcherId: 'win-l', kind: 'win' as const, payout: 5, free: false, x: 160, y: 700 }));
-    synth.onEvents(ev);
+    synth.onEvents(catches());
     expect(SOUND_SETS.raijin.chime.length).toBeGreaterThan(1);
     expect(FakeAudioContext.created).toBe(12);
-    synth.dispose(); vi.unstubAllGlobals();
+    synth.dispose();
   });
-  it('jackpot loop keeps its beat while the cap denies ticks', () => {
+  it('50 pin clicks in one second play exactly 12', () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext); FakeAudioContext.created = 0;
+    const synth = new Synth(SOUND_SETS.raijin); synth.resume();
+    synth.onEvents(Array.from({ length: 50 }, (_, i) => ({ type: 'pin' as const, index: i, x: 100, y: 100, speed: 300 })));
+    expect(FakeAudioContext.created).toBe(12);
+    synth.dispose();
+  });
+  it('jackpot loop plays every tick for 2 s while clicks keep the window full', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'performance'] });
     vi.stubGlobal('AudioContext', FakeAudioContext); vi.stubGlobal('window', globalThis); FakeAudioContext.created = 0;
     const synth = new Synth(SOUND_SETS.raijin); synth.resume();
-    const catches = Array.from({ length: 50 }, () => ({ type: 'catch' as const, catcherId: 'win-l', kind: 'win' as const, payout: 5, free: false, x: 160, y: 700 }));
-    synth.onEvents(catches);                                 // exhaust the second's budget at t=0
+    synth.onEvents(catches());                               // drain the window: 12 clicks stamped at t=0
     expect(FakeAudioContext.created).toBe(12);
-    synth.onEvents([{ type: 'jackpotOpen' }]);               // opening arp and first loop tick are all denied
-    expect(FakeAudioContext.created).toBe(12);
+    const arpLen = SOUND_SETS.raijin.reachChime.length + 1;  // opening arp is priority: all its notes play
+    synth.onEvents([{ type: 'jackpotOpen' }]);
+    expect(FakeAudioContext.created).toBe(12 + arpLen + 1);  // + the first loop tick at t=0
     const loop = (synth as unknown as { loop: { i: number } }).loop;
-    expect(loop.i).toBe(1);                                  // the denied tick still advanced the melody
+    expect(loop.i).toBe(1);
     expect(60000 / SOUND_SETS.raijin.jackpotLoop.bpm).toBe(500);
-    vi.advanceTimersByTime(999);                             // tick at 500 ms: denied, no drift
-    expect(FakeAudioContext.created).toBe(12); expect(loop.i).toBe(2);
-    vi.advanceTimersByTime(1001);                            // window rolled over: ticks at 1000/1500/2000 play
-    expect(FakeAudioContext.created).toBe(15); expect(loop.i).toBe(5);
-    synth.dispose(); vi.unstubAllGlobals(); vi.useRealTimers();
+    let loopNotes = 1;                                       // the tick at t=0
+    for (let t = 0; t < 2000; t += 250) {                    // 40 click requests/s the whole time; ticks fire inside the advance
+      synth.onEvents(Array.from({ length: 10 }, (_, i) => ({ type: 'pin' as const, index: i, x: 100, y: 100, speed: 300 })));
+      const before = FakeAudioContext.created;
+      vi.advanceTimersByTime(250);
+      loopNotes += FakeAudioContext.created - before;
+    }
+    expect(loop.i).toBe(5);                                  // ticks at 0/500/1000/1500/2000 ms
+    expect(loopNotes).toBe(5);                               // every one of them played
+    const clicks = FakeAudioContext.created - 12 - arpLen - loopNotes;
+    expect(clicks).toBeLessThanOrEqual(24);                  // the cap still holds for the 80 click requests (12/s)
+    synth.dispose();
+  });
+  it('a 4-note arp plays all four notes against a full window', () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext); FakeAudioContext.created = 0;
+    const synth = new Synth(SOUND_SETS.raijin); synth.resume();
+    synth.onEvents(catches());
+    expect(FakeAudioContext.created).toBe(12);
+    expect(SOUND_SETS.raijin.close.length).toBe(4);
+    synth.onEvents([{ type: 'jackpotClose', total: 30 }]);
+    expect(FakeAudioContext.created).toBe(16);
+    synth.onEvents([{ type: 'pin', index: 0, x: 1, y: 1, speed: 100 }]); // the window is still full for clicks
+    expect(FakeAudioContext.created).toBe(16);
+    synth.dispose();
   });
   it('disconnects oscillator and gain when a note ends', () => {
     vi.stubGlobal('AudioContext', FakeAudioContext);
@@ -122,6 +149,6 @@ describe('Synth cap', () => {
     expect(osc.onended).toBeTypeOf('function');
     osc.onended!();
     expect(osc.disconnect).toHaveBeenCalledTimes(1); expect(gain.disconnect).toHaveBeenCalledTimes(1);
-    synth.dispose(); vi.unstubAllGlobals();
+    synth.dispose();
   });
 });
