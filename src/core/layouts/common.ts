@@ -20,7 +20,8 @@ export function attacker(x: number, payout: number): Catcher {
   return { id: 'attacker', kind: 'attacker', x, y: 610, halfWidth: 70, payout };
 }
 
-export interface BuildOpts { skipRects: Rect[]; windmills: Windmill[]; catchers: Catcher[]; attacker: Catcher; reelRect: Rect; solids?: Solids }
+/** `extraPins`: hand-placed pins outside the grid (splitters that break up a coherent launch stream). */
+export interface BuildOpts { skipRects: Rect[]; windmills: Windmill[]; catchers: Catcher[]; attacker: Catcher; reelRect: Rect; solids?: Solids; extraPins?: Pin[] }
 
 export function buildLayout(o: BuildOpts): Layout {
   const tulips = o.catchers.filter(c => c.tulip);
@@ -31,7 +32,7 @@ export function buildLayout(o: BuildOpts): Layout {
     near(x, y, tulips, 36) ||
     near(x, y, [o.attacker], 90) ||
     y > 600; // bottom funnel is open
-  const pins: Pin[] = [...pinGrid(GRID, skip), ...tulips.flatMap(tulipPins)];
+  const pins: Pin[] = [...pinGrid(GRID, skip), ...tulips.flatMap(tulipPins), ...(o.extraPins ?? [])];
   return {
     pins, windmills: o.windmills, catchers: o.catchers, attacker: o.attacker, reelRect: o.reelRect, launch: { x: 70, y: 50 },
     solids: o.solids ?? { circles: [], segments: [] },

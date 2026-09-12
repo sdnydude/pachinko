@@ -19,8 +19,8 @@ export interface ReachState { t: number; digits: [number, number, number]; win: 
 export interface JackpotState { t: number; caught: number; total: number }
 export interface GameSave { bank: number; bestSession: number; biggestJackpot: number }
 /**
- * Same-frame read view of the game. `balls`, `tulipOpen`, `windmillSpin`, `reach` and `jackpot` are live references
- * into Game state (not copies): read them during the frame you took the snapshot, do not retain or mutate them.
+ * Read view of the game, taken once per frame. `balls`, `tulipOpen`, `windmillSpin`, `reach` and `jackpot` are copies
+ * (one level deep, arrays included), so a held snapshot is unaffected by later steps; mutating it does nothing to the game.
  */
 export interface Snapshot {
   phase: Phase; bank: number; sessionWon: number; bestSession: number; biggestJackpot: number; seed: number; time: number;
@@ -150,7 +150,7 @@ export class Game {
       stepBall(b, L, DT, this.contacts);
       for (const c of this.contacts) {
         if (c.type === 'pin') ev.push({ type: 'pin', index: c.index, x: c.x, y: c.y, speed: c.speed });
-        else if (c.type === 'windmill') { this.windmillSpin[c.index] = b.vx >= 0 ? 12 : -12; ev.push({ type: 'windmill', index: c.index, x: c.x, y: c.y }); }
+        else if (c.type === 'windmill') { this.windmillSpin[c.index] = 12 * L.windmills[c.index]!.dir; ev.push({ type: 'windmill', index: c.index, x: c.x, y: c.y }); }
         else ev.push({ type: 'wall', x: c.x, y: c.y, speed: c.speed });
       }
       if (this.tryCatch(b, ev) || exited(b)) this.balls.splice(i, 1);
@@ -251,8 +251,10 @@ export class Game {
     const digits: [number, number, number] = [0, 1, 2].map(i => this.reach ? (this.reach.stopped[i] ? this.reach.digits[i] : spinDigit(i)) : (this.lastDigits[i] ?? 7)) as [number, number, number];
     return {
       phase: this.phase, bank: this.bank, sessionWon: this.sessionWon, bestSession: this.bestSession, biggestJackpot: this.biggestJackpot,
-      seed: this.seed, time: this.time, balls: this.balls, tulipOpen: this.tulipOpen, windmillSpin: this.windmillSpin,
-      dial: { held: this.held, strength: this.strength }, reach: this.reach, jackpot: this.jackpot, reachQueue: this.reachQueue,
+      seed: this.seed, time: this.time, balls: this.balls.map(b => ({ ...b })), tulipOpen: { ...this.tulipOpen }, windmillSpin: [...this.windmillSpin],
+      dial: { held: this.held, strength: this.strength },
+      reach: this.reach && { ...this.reach, digits: [...this.reach.digits], stopAt: [...this.reach.stopAt], stopped: [...this.reach.stopped] },
+      jackpot: this.jackpot && { ...this.jackpot }, reachQueue: this.reachQueue,
       attackerOpen: this.phase === 'jackpot', rightShoot: this.phase === 'jackpot' && this.machine.attackerSide === 'right',
       reelDigits: digits, reelSpinning: spinning, needsBuyIn: this.phase === 'idle', buyIns: this.buyIns,
     };
