@@ -23,6 +23,7 @@ export class Effects {
   constructor(private theme: Theme, private layout: Layout, opts?: { reducedMotion?: boolean }) { this.reduced = !!opts?.reducedMotion; }
   get particleCount() { return this.particles.length; }
   get flashCount() { return this.flashes.length; }
+  get floatCount() { return this.floats.length; }
 
   onEvents(ev: GameEvent[], s: Snapshot): void {
     const P = this.theme.palette;
@@ -30,12 +31,12 @@ export class Effects {
       switch (e.type) {
         case 'pin': if (!this.reduced) this.flashes.push({ index: e.index, life: 0.08 }); this.spark(e.x, e.y, 3, P.accent, Math.min(1, e.speed / 400)); break;
         case 'windmill': this.spark(e.x, e.y, 4, P.accent2, 0.6); break;
-        case 'catch': if (e.payout > 0) { this.floats.push({ x: e.x, y: e.y - 10, text: `+${e.payout}`, life: 0.9, color: P.accent, size: 16 }); this.spark(e.x, e.y, 8, P.accent, 1); } break;
+        case 'catch': if (e.payout > 0) { if (!e.free) this.floats.push({ x: e.x, y: e.y - 10, text: `+${e.payout}`, life: 0.9, color: P.accent, size: 16 }); this.spark(e.x, e.y, 8, P.accent, 1); } break;
         case 'reachStart': this.lampSpeed = 'fast'; break;
         case 'reelStop': if (e.reel === 1 && e.tension) this.dim = 0.3; break;
         case 'reachMiss': this.dim = 0; this.lampSpeed = 'slow'; break;
         case 'jackpotOpen': this.dim = 0; this.lampSpeed = 'rainbow'; this.whiteFlash = 0.4; this.slam = { text: this.theme.copy.jackpot, t: 0 }; break;
-        case 'attackerCatch': this.floats.push({ x: e.x, y: e.y - 12, text: `+${e.payout}`, life: 1.0, color: P.accent, size: 20 }); this.spark(e.x, e.y, 12, P.accent, 1); break;
+        case 'attackerCatch': if (!e.free) this.floats.push({ x: e.x, y: e.y - 12, text: `+${e.payout}`, life: 1.0, color: P.accent, size: 20 }); this.spark(e.x, e.y, 12, P.accent, 1); break;
         case 'jackpotClose': this.lampSpeed = 'slow'; this.jackpotTotal = { total: e.total, t: 0 }; break;
       }
     }

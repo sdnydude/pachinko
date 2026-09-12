@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./core": "./src/core/machine.ts",
     "./storage/local": "./src/storage/local.ts",
     "./app.css": "./src/app.css"
   },

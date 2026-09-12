@@ -55,14 +55,14 @@ export class Synth {
         case 'pin': if (this.allow()) this.beep(S.click.freq * (0.8 + Math.min(1, e.speed / 500) * 0.4), S.click.type, S.click.ms, 0.05); break;
         case 'windmill': if (this.allow()) this.beep(S.whir.freq, S.whir.type, S.whir.ms, 0.04); break;
         case 'tulip': if (this.allow()) this.beep(S.clack.freq, S.clack.type, S.clack.ms, 0.06); break;
-        case 'catch': if (e.payout > 0 && this.allow()) this.arp(S.chime, 70); break;
+        case 'catch': if (e.payout > 0 && !e.free && this.allow()) this.arp(S.chime, 70); break;
         case 'reachStart': if (this.allow()) this.arp(S.reachChime, 110); break;
         case 'reelStop':
           if (this.allow()) this.beep(S.tick.freq, S.tick.type, S.tick.ms, 0.06);
           if (e.reel === 1 && e.tension) this.startTicks(); else if (e.reel === 2) this.stopTicks();
           break;
         case 'jackpotOpen': this.stopTicks(); if (this.allow()) { this.arp([...S.reachChime, S.reachChime[S.reachChime.length - 1]! * 2], 80); this.startLoop(); } break;
-        case 'attackerCatch': if (this.allow()) this.arp(S.chime, 50, 'square'); break;
+        case 'attackerCatch': if (!e.free && this.allow()) this.arp(S.chime, 50, 'square'); break;
         case 'jackpotClose': this.stopLoop(); if (this.allow()) this.arp(S.close, 120); break;
       }
     }

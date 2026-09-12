@@ -1,4 +1,4 @@
-import { MACHINE_ORDER, type MachineId } from 'pachinko';
+import { MACHINE_ORDER, type MachineId } from 'pachinko/core';
 import PlayClientGate from './PlayClientGate';
 
 export default async function PlayPage({ searchParams }: { searchParams: Promise<{ m?: string; seed?: string }> }) {

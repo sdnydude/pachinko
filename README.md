@@ -21,7 +21,9 @@ npm run dev        # Vite dev server for the standalone page
   everything inlined; it opens from a file URL.
 - **Next.js:** `npm run dev -w web`, then open `/play`. The route mounts the
   game in a client component with server rendering disabled and passes the
-  storage adapter as a prop (`LocalStorage` by default).
+  storage adapter as a prop (`LocalStorage` by default). A custom `storage`
+  adapter is passed to `PachinkoClient` from a client component and should be
+  memoized: a new instance per render re-creates the `App`.
 
 Both targets import the package through `src/index.ts`, which exports `App`,
 the machine table, the `Storage` types and the `LocalStorage` / `MemoryStorage`
@@ -38,7 +40,7 @@ adapters.
 | Key | Action |
 | --- | --- |
 | Space (hold) | Charge the launcher; release to fire. Holding past 1.2 s auto-fires. |
-| Up / Down arrows | Trim strength while held |
+| Up / Down arrows | Trim strength (any time; the value resets at the next hold) |
 | 1 / 2 / 3 | Switch machine |
 | M | Mute |
 | ` (backtick) | Toggle the debug overlay (fps, balls, phase, seed) |

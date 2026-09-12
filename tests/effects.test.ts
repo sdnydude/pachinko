@@ -37,6 +37,16 @@ describe('Effects', () => {
     fx.onEvents([{ type: 'pin', index: 0, x: 1, y: 1, speed: 100 }], s);
     expect(fx.particleCount).toBe(3);
   });
+  it('a free-ball catch sparks but adds no payout float', () => {
+    const fx = new Effects(THEMES.raijin, MACHINES.raijin.layout);
+    const g = new Game(MACHINES.raijin, 1); const s = g.snapshot();
+    fx.onEvents([{ type: 'catch', catcherId: 'win-l', kind: 'win', payout: 5, free: true, x: 160, y: 700 }], s);
+    fx.onEvents([{ type: 'attackerCatch', payout: 15, free: true, caught: 1, x: 320, y: 610 }], s);
+    expect(fx.floatCount).toBe(0);
+    expect(fx.particleCount).toBe(20);
+    fx.onEvents([{ type: 'catch', catcherId: 'win-l', kind: 'win', payout: 5, free: false, x: 160, y: 700 }], s);
+    expect(fx.floatCount).toBe(1);
+  });
   it('reduced motion suppresses pin flash and lamp chase', () => {
     const fx = new Effects(THEMES.raijin, MACHINES.raijin.layout, { reducedMotion: true });
     const g = new Game(MACHINES.raijin, 1); const s = g.snapshot();

@@ -88,9 +88,12 @@ export class App {
     if (this.game) this.flushSave();
   }
 
-  /** Tabs, number keys and swipes all come through here; switching is ignored while the attacker is open. */
+  /**
+   * Tabs, number keys and swipes all come through here; switching is ignored while the attacker is open and when the
+   * machine is already selected (Space on a focused tab re-clicks it). Reset calls switchMachine directly.
+   */
   private requestSwitch(id: MachineId): void {
-    if (this.game.snapshot().phase === 'jackpot') return;
+    if (id === this.machineId || this.game.snapshot().phase === 'jackpot') return;
     void this.switchMachine(id);
   }
 

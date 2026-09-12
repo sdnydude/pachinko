@@ -34,10 +34,10 @@ export type GameEvent =
   | { type: 'pin'; index: number; x: number; y: number; speed: number }
   | { type: 'windmill'; index: number; x: number; y: number }
   | { type: 'wall'; x: number; y: number; speed: number }
-  | { type: 'catch'; catcherId: string; kind: CatcherKind; payout: number; x: number; y: number }
+  | { type: 'catch'; catcherId: string; kind: CatcherKind; payout: number; free: boolean; x: number; y: number }
   | { type: 'tulip'; catcherId: string; open: boolean }
   | { type: 'reachStart' } | { type: 'reelStop'; reel: 0 | 1 | 2; digit: number; tension: boolean } | { type: 'reachMiss' }
-  | { type: 'jackpotOpen' } | { type: 'attackerCatch'; payout: number; caught: number; x: number; y: number } | { type: 'jackpotClose'; total: number }
+  | { type: 'jackpotOpen' } | { type: 'attackerCatch'; payout: number; free: boolean; caught: number; x: number; y: number } | { type: 'jackpotClose'; total: number }
   | { type: 'bankEmpty' };
 
 export class Game {
@@ -160,18 +160,19 @@ export class Game {
 
   private tryCatch(b: Ball, ev: GameEvent[]): boolean {
     const L = this.machine.layout;
-    // free balls (attract mode) trigger everything but pay nothing and do not count toward the jackpot
+    // free balls (attract mode) trigger everything but pay nothing and do not count toward the jackpot; `payout` stays
+    // nominal on the event (the soak sums it) and `free` tells effects/audio to skip the payout feedback
     if (this.phase === 'jackpot' && this.jackpot && catcherHit(b, L.attacker, L.attacker.halfWidth)) {
       const pay = this.machine.tuning.attackerPayout;
       if (!b.free) { this.jackpot.caught++; this.jackpot.total += pay; this.award(pay); }
-      ev.push({ type: 'attackerCatch', payout: pay, caught: this.jackpot.caught, x: b.x, y: b.y });
+      ev.push({ type: 'attackerCatch', payout: pay, free: !!b.free, caught: this.jackpot.caught, x: b.x, y: b.y });
       return true;
     }
     for (const c of L.catchers) {
       const hw = c.tulip ? (this.tulipOpen[c.id] ? c.tulip.openHalfWidth : c.tulip.closedHalfWidth) : c.halfWidth;
       if (!catcherHit(b, c, hw)) continue;
       if (!b.free) this.award(c.payout);
-      ev.push({ type: 'catch', catcherId: c.id, kind: c.kind, payout: c.payout, x: b.x, y: b.y });
+      ev.push({ type: 'catch', catcherId: c.id, kind: c.kind, payout: c.payout, free: !!b.free, x: b.x, y: b.y });
       if (c.tulip) { this.tulipOpen[c.id] = !this.tulipOpen[c.id]; ev.push({ type: 'tulip', catcherId: c.id, open: this.tulipOpen[c.id]! }); }
       if (c.kind === 'start') this.queueReach(ev);
       return true;
