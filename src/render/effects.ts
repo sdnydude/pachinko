@@ -54,12 +54,16 @@ export class Effects {
   update(dt: number): void {
     const speed = this.lampSpeed === 'slow' ? 1 : this.lampSpeed === 'fast' ? 4 : 10;
     if (!this.reduced) this.lampPhase = (this.lampPhase + dt * speed) % 1000;
-    for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; }
-    this.particles = this.particles.filter(p => p.life > 0);
-    for (const f of this.floats) { f.life -= dt; f.y -= 30 * dt; }
-    this.floats = this.floats.filter(f => f.life > 0);
-    for (const f of this.flashes) f.life -= dt;
-    this.flashes = this.flashes.filter(f => f.life > 0);
+    // in-place compaction (write index): a per-frame call must not allocate when nothing expires
+    let n = 0;
+    for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; if (p.life > 0) this.particles[n++] = p; }
+    this.particles.length = n;
+    n = 0;
+    for (const f of this.floats) { f.life -= dt; f.y -= 30 * dt; if (f.life > 0) this.floats[n++] = f; }
+    this.floats.length = n;
+    n = 0;
+    for (const f of this.flashes) { f.life -= dt; if (f.life > 0) this.flashes[n++] = f; }
+    this.flashes.length = n;
     if (this.whiteFlash > 0) this.whiteFlash -= dt;
     if (this.slam) { this.slam.t += dt; if (this.slam.t > 1.2) this.slam = null; }
     if (this.jackpotTotal) { this.jackpotTotal.t += dt; if (this.jackpotTotal.t > 2) this.jackpotTotal = null; }

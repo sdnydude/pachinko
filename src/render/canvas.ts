@@ -1,7 +1,7 @@
 import { BALL_R, BOARD_H, BOARD_W, type Catcher } from '../core/board';
 import type { Machine } from '../core/machine';
 import type { Snapshot } from '../core/game';
-import type { Theme } from './theme';
+import { RENDER_METRICS as RM, type Theme } from './theme';
 import { loadCel } from './cel';
 
 export interface EffectsLike { draw(ctx: CanvasRenderingContext2D, t: number): void }
@@ -71,12 +71,12 @@ export class Renderer {
     // attacker
     const a = L.attacker;
     ctx.fillStyle = s.attackerOpen ? P.attackerOpen : P.attacker;
-    ctx.fillRect(a.x - a.halfWidth, a.y - 4, a.halfWidth * 2, s.attackerOpen ? 14 : 8);
-    if (s.attackerOpen) { ctx.strokeStyle = P.accent; ctx.lineWidth = 2; ctx.strokeRect(a.x - a.halfWidth, a.y - 4, a.halfWidth * 2, 14); }
+    ctx.fillRect(a.x - a.halfWidth, a.y - RM.attacker.lip, a.halfWidth * 2, s.attackerOpen ? RM.attacker.openH : RM.attacker.closedH);
+    if (s.attackerOpen) { ctx.strokeStyle = P.accent; ctx.lineWidth = 2; ctx.strokeRect(a.x - a.halfWidth, a.y - RM.attacker.lip, a.halfWidth * 2, RM.attacker.openH); }
     // reels
     const R = L.reelRect; const cw = R.w / 3;
     ctx.fillStyle = P.reelBg; ctx.fillRect(R.x, R.y, R.w, R.h);
-    ctx.font = `bold ${Math.floor(R.h * 0.8)}px ${T.fonts.display}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `bold ${Math.floor(R.h * RM.reelFontRatio)}px ${T.fonts.display}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let i = 0; i < 3; i++) {
       const d = s.reelDigits[i]!; const spinning = s.reelSpinning[i]!;
       ctx.fillStyle = spinning ? 'rgba(0,0,0,.45)' : (d === 7 ? P.reelHit : P.reelFg);
@@ -107,16 +107,18 @@ export class Renderer {
     const { ctx } = this; const P = this.theme.palette;
     if (c.tulip) {
       const hw = c.tulip.closedHalfWidth + (c.tulip.openHalfWidth - c.tulip.closedHalfWidth) * spread;
-      ctx.fillStyle = c.kind === 'start' ? P.pocketStart : P.tulipBody; ctx.fillRect(c.x - 8, c.y, 16, 14);
-      ctx.strokeStyle = P.tulipWing; ctx.lineWidth = 4; ctx.lineCap = 'round';
-      for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(c.x + side * 7, c.y); ctx.quadraticCurveTo(c.x + side * (hw + 4), c.y - 10, c.x + side * hw, c.y - 20); ctx.stroke(); }
-      ctx.fillStyle = '#fff'; ctx.font = `bold 9px ${this.theme.fonts.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(c.kind === 'start' ? 'S' : String(c.payout), c.x, c.y + 7);
+      const M = RM.tulip;
+      ctx.fillStyle = c.kind === 'start' ? P.pocketStart : P.tulipBody; ctx.fillRect(c.x - M.pedestalW / 2, c.y, M.pedestalW, M.pedestalH);
+      ctx.strokeStyle = P.tulipWing; ctx.lineWidth = M.wingWidth; ctx.lineCap = 'round';
+      for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(c.x + side * M.wingRoot, c.y); ctx.quadraticCurveTo(c.x + side * (hw + M.wingBulge), c.y - M.wingLift, c.x + side * hw, c.y - M.wingLen); ctx.stroke(); }
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${M.labelPx}px ${this.theme.fonts.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(c.kind === 'start' ? 'S' : String(c.payout), c.x, c.y + M.labelDy);
       return;
     }
     const color = c.kind === 'win' ? P.pocketWin : c.kind === 'start' ? P.pocketStart : P.pocketOut;
-    ctx.fillStyle = color; ctx.fillRect(c.x - c.halfWidth, c.y - 2, c.halfWidth * 2, 16);
-    ctx.fillStyle = c.kind === 'out' ? P.panelFg : '#fff'; ctx.font = `bold 10px ${this.theme.fonts.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(c.kind === 'out' ? 'OUT' : c.kind === 'start' ? this.theme.copy.start : `+${c.payout}`, c.x, c.y + 6);
+    const M = RM.pocket;
+    ctx.fillStyle = color; ctx.fillRect(c.x - c.halfWidth, c.y - M.lip, c.halfWidth * 2, M.h);
+    ctx.fillStyle = c.kind === 'out' ? P.panelFg : '#fff'; ctx.font = `bold ${M.labelPx}px ${this.theme.fonts.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(c.kind === 'out' ? 'OUT' : c.kind === 'start' ? this.theme.copy.start : `+${c.payout}`, c.x, c.y + M.labelDy);
   }
 }

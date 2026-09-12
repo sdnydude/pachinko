@@ -37,7 +37,7 @@ test('reset restores the bank to 100', async ({ page }) => {
 test('mute persists across reload', async ({ page }) => {
   await page.goto('/?m=raijin&seed=7');
   await page.keyboard.press('m');
-  await page.waitForTimeout(700);
+  await page.waitForFunction(() => (localStorage.getItem('pachinko.save.v1') ?? '').includes('"mute":true'));
   await page.reload();
   await expect(page.locator('[data-a=mute]')).toHaveAttribute('aria-pressed', 'true');
 });

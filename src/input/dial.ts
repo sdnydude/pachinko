@@ -16,9 +16,11 @@ export class Dial {
   private trimPerPixel: number;
   private keyboard: boolean;
   private keyHeld = false;
+  private prevTouchAction: string;
   constructor(private zone: HTMLElement, private target: DialTarget, opts?: { trimPerPixel?: number; keyboard?: boolean }) {
     this.trimPerPixel = opts?.trimPerPixel ?? 1 / 150;
     this.keyboard = opts?.keyboard ?? true;
+    this.prevTouchAction = zone.style.touchAction;
     zone.style.touchAction = 'none';
     zone.addEventListener('pointerdown', this.down);
     zone.addEventListener('pointermove', this.move);
@@ -37,5 +39,6 @@ export class Dial {
     this.zone.removeEventListener('pointerdown', this.down); this.zone.removeEventListener('pointermove', this.move);
     this.zone.removeEventListener('pointerup', this.up); this.zone.removeEventListener('pointercancel', this.up);
     if (this.keyboard) { window.removeEventListener('keydown', this.key); window.removeEventListener('keyup', this.key); }
+    this.zone.style.touchAction = this.prevTouchAction;
   }
 }

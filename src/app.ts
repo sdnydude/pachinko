@@ -17,7 +17,9 @@ export type { MachineId } from './core/machine';
 export interface AppOptions { root: HTMLElement; storage: Storage; machine?: MachineId; seed?: number }
 
 export class App {
-  game!: Game;
+  private _game!: Game;
+  /** Read-only from outside: the app owns the Game's lifetime (switch/reset replace it). */
+  get game(): Game { return this._game; }
   private renderer!: Renderer;
   effects!: Effects;
   synth: Synth;
@@ -56,7 +58,7 @@ export class App {
     if (this.stopped) return;
     this.panel = new Panel(this.shellEl, {
       onSwitch: id => this.requestSwitch(id),
-      onSwipe: dir => { const n = MACHINE_ORDER.length; this.requestSwitch(MACHINE_ORDER[(MACHINE_ORDER.indexOf(this.machineId) + dir + n) % n]!); },
+      onSwipe: dir => { const next = MACHINE_ORDER[MACHINE_ORDER.indexOf(this.machineId) + dir]; if (next) this.requestSwitch(next); },   // clamps at the ends, no wrap
       onMute: m => { this.synth.setMuted(m); this.setSaveField('mute', m); },
       onBuyIn: () => { this.game.buyIn(); this.closeOverlay(); },
       onReset: () => { this.save.perMachine[this.machineId] = undefined; void this.switchMachine(this.machineId, { reset: true }); this.scheduleSave(); },
@@ -101,7 +103,7 @@ export class App {
     if (this.game && !opts?.reset) this.persistGame();
     this.machineId = id;
     const m = MACHINES[id];
-    this.game = new Game(m, this.seed ^ MACHINE_ORDER.indexOf(id), this.save.perMachine[id]);
+    this._game = new Game(m, this.seed ^ MACHINE_ORDER.indexOf(id), this.save.perMachine[id]);
     this.renderer = new Renderer(this.canvas, m, THEMES[id]);
     this.effects = new Effects(THEMES[id], m.layout, { reducedMotion: this.reducedMq.matches });
     this.panel?.setTheme(THEMES[id], id); ensureFonts(THEMES[id]);
