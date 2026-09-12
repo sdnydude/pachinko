@@ -53,6 +53,7 @@ export class App {
 
   stop(): void {
     this.running = false; cancelAnimationFrame(this.raf); this.dial?.destroy();
+    this.synth.dispose();
     this.ro?.disconnect(); this.ro = null;
     document.removeEventListener('visibilitychange', this.onVisibility); window.removeEventListener('pagehide', this.flushSave);
     this.flushSave();

@@ -21,12 +21,13 @@ export class Effects {
   private reduced: boolean;
   constructor(private theme: Theme, private layout: Layout, opts?: { reducedMotion?: boolean }) { this.reduced = !!opts?.reducedMotion; }
   get particleCount() { return this.particles.length; }
+  get flashCount() { return this.flashes.length; }
 
   onEvents(ev: GameEvent[], s: Snapshot): void {
     const P = this.theme.palette;
     for (const e of ev) {
       switch (e.type) {
-        case 'pin': this.flashes.push({ index: e.index, life: 0.08 }); this.spark(e.x, e.y, 3, P.accent, Math.min(1, e.speed / 400)); break;
+        case 'pin': if (!this.reduced) this.flashes.push({ index: e.index, life: 0.08 }); this.spark(e.x, e.y, 3, P.accent, Math.min(1, e.speed / 400)); break;
         case 'windmill': this.spark(e.x, e.y, 4, P.accent2, 0.6); break;
         case 'catch': if (e.payout > 0) { this.floats.push({ x: e.x, y: e.y - 10, text: `+${e.payout}`, life: 0.9, color: P.accent, size: 16 }); this.spark(e.x, e.y, 8, P.accent, 1); } break;
         case 'reachStart': this.lampSpeed = 'fast'; break;
@@ -50,7 +51,7 @@ export class Effects {
 
   update(dt: number): void {
     const speed = this.lampSpeed === 'slow' ? 1 : this.lampSpeed === 'fast' ? 4 : 10;
-    this.lampPhase = (this.lampPhase + dt * speed) % 1000;
+    if (!this.reduced) this.lampPhase = (this.lampPhase + dt * speed) % 1000;
     for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; }
     this.particles = this.particles.filter(p => p.life > 0);
     for (const f of this.floats) { f.life -= dt; f.y -= 30 * dt; }

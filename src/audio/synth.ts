@@ -12,6 +12,7 @@ export class Synth {
   setMuted(m: boolean) { this.muted = m; if (m) this.stopLoop(); }
   /** Call from a user gesture once so the AudioContext can start. */
   resume() { if (!this.ctx) this.ctx = new AudioContext(); if (this.ctx.state === 'suspended') void this.ctx.resume(); }
+  dispose(): void { this.stopLoop(); if (this.ctx) { void this.ctx.close(); this.ctx = null; } }
 
   private allow(): boolean {
     if (this.muted || !this.ctx) return false;
