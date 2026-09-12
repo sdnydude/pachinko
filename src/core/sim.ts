@@ -20,7 +20,7 @@ export function runSoak(machineId: MachineId, opts: { balls: number; strength: n
   let fired = 0, maxInFlight = 0, maxAge = 0, nan = false, oob = false, jackpots = 0, returned = 0;
   let fireClock = 0;
   const FIRE_EVERY = 0.15;
-  const guard = Math.ceil((opts.balls * FIRE_EVERY + 200) / DT); // buffer covers backlog drain when the 15-ball cap throttles high-strength firing
+  const guard = Math.ceil((opts.balls * 2 + 60) / DT); // every ball exits within 30 s and at most 15 fly at once, so 2 s per ball bounds a healthy run
   for (let i = 0; i < guard; i++) {
     fireClock += DT;
     if (fired < opts.balls && fireClock >= FIRE_EVERY) { if (g.fireAt(opts.strength, true)) { fired++; fireClock = 0; } }

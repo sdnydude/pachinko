@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { stepBall, resolveCircle, catcherHit, exited, DT, GRAVITY, type Ball, type ContactEvent } from '../src/core/physics';
-import { BALL_R, BOARD_H, BOARD_W, FIELD_LEFT, type Layout, type Catcher } from '../src/core/board';
+import { stepBall, resolveCircle, resolveSegment, catcherHit, exited, DT, GRAVITY, type Ball, type ContactEvent } from '../src/core/physics';
+import { BALL_R, BOARD_H, BOARD_W, FIELD_LEFT, roofRect, type Layout, type Catcher, type Segment } from '../src/core/board';
 
 const emptyLayout = (): Layout => ({
   pins: [], windmills: [], catchers: [],
   attacker: { id: 'atk', kind: 'attacker', x: 320, y: 610, halfWidth: 70, payout: 15 },
-  reelRect: { x: 0, y: 0, w: 0, h: 0 }, launch: { x: 70, y: 50 },
+  reelRect: { x: 0, y: 0, w: 0, h: 0 }, launch: { x: 70, y: 50 }, solids: { circles: [], segments: [] },
 });
 const ball = (p: Partial<Ball> = {}): Ball => ({ id: 1, x: 300, y: 300, vx: 0, vy: 0, age: 0, px: 300, py: 300, ...p });
 
@@ -62,6 +62,49 @@ describe('resolveCircle', () => {
   });
   it('returns 0 when not touching', () => {
     const b = ball(); expect(resolveCircle(b, 400, 400, 3.5, 0.5)).toBe(0);
+  });
+});
+
+describe('resolveSegment', () => {
+  const H: Segment = { ax: 200, ay: 400, bx: 400, by: 400 };
+  it('pushes the ball out of a horizontal segment and reflects the normal velocity with restitution', () => {
+    const b = ball({ x: 300, y: 398, px: 300, py: 390, vx: 50, vy: 100 });
+    expect(resolveSegment(b, H, 0.35)).toBeCloseTo(100);
+    expect(b.x).toBe(300); expect(b.y).toBeCloseTo(400 - BALL_R, 6);
+    expect(b.vx).toBe(50); expect(b.vy).toBeCloseTo(-35, 6);
+  });
+  it('pushes toward the side the ball came from, so it cannot tunnel through', () => {
+    const b = ball({ x: 300, y: 402, px: 300, py: 396, vx: 0, vy: 100 });
+    expect(resolveSegment(b, H, 0.35)).toBeGreaterThan(0);
+    expect(b.y).toBeCloseTo(400 - BALL_R, 6); expect(b.vy).toBeLessThan(0);
+  });
+  it('reflects off a slanted segment along its normal', () => {
+    const S: Segment = { ax: 0, ay: 0, bx: 100, by: 100 };
+    const b = ball({ x: 52, y: 50, px: 52, py: 40, vx: 0, vy: 100 }); // falling onto the 45° wall from above-right
+    expect(resolveSegment(b, S, 0.5)).toBeCloseTo(100 / Math.SQRT2, 6);
+    expect(b.x).toBeCloseTo(51 + BALL_R / Math.SQRT2, 6); expect(b.y).toBeCloseTo(51 - BALL_R / Math.SQRT2, 6);
+    expect(b.vx).toBeCloseTo(75, 6); expect(b.vy).toBeCloseTo(25, 6);
+  });
+  it('no contact when far, beyond the end points, or already separating', () => {
+    const far = ball({ x: 300, y: 380, vy: 100 }); expect(resolveSegment(far, H, 0.35)).toBe(0); expect(far.y).toBe(380);
+    const past = ball({ x: 410, y: 400, vy: 100 }); expect(resolveSegment(past, H, 0.35)).toBe(0);
+    const up = ball({ x: 300, y: 398, px: 300, py: 390, vy: -100 }); expect(resolveSegment(up, H, 0.35)).toBe(0);
+  });
+});
+
+describe('stepBall solids', () => {
+  it('bounces off a solid circle and emits a wall contact', () => {
+    const L = emptyLayout(); L.solids.circles = [{ x: 300, y: 330, r: 20 }];
+    const b = ball({ y: 306, vy: 200 }); const ev: ContactEvent[] = [];
+    stepBall(b, L, DT, ev);
+    expect(ev.some(e => e.type === 'wall')).toBe(true); expect(b.vy).toBeLessThan(0);
+  });
+  it('a ball landing dead-center on a roof peak is nudged sideways instead of resting', () => {
+    const L = emptyLayout(); L.solids.segments = roofRect({ x: 200, y: 400, w: 200, h: 50 }, 12); // peak (300, 388)
+    const b = ball({ x: 300, y: 384, vx: 0, vy: 100 }); const ev: ContactEvent[] = [];
+    stepBall(b, L, DT, ev);
+    expect(ev.some(e => e.type === 'wall')).toBe(true);
+    expect(b.vx).not.toBe(0); expect(b.y).toBeLessThan(388 - BALL_R + 0.01);
   });
 });
 
