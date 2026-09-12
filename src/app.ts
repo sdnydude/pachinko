@@ -17,6 +17,7 @@ export class App {
   private save: SaveData = structuredClone(EMPTY_SAVE);
   private raf = 0; private last = 0; private running = false;
   private saveTimer = 0;
+  private ro: ResizeObserver | null = null;
   private machineId: MachineId;
   private seed: number;
   /** Subscribers get every game event each frame (effects, audio, panel). */
@@ -36,7 +37,7 @@ export class App {
     this.save = (await this.o.storage.load()) ?? structuredClone(EMPTY_SAVE);
     await this.switchMachine(this.machineId);
     this.dial = new Dial(this.boardEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) });
-    new ResizeObserver(() => this.fit()).observe(this.boardEl); this.fit();
+    this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(this.boardEl); this.fit();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.flushSave);
     this.running = true; this.last = performance.now(); this.raf = requestAnimationFrame(this.frame);
@@ -44,6 +45,7 @@ export class App {
 
   stop(): void {
     this.running = false; cancelAnimationFrame(this.raf); this.dial?.destroy();
+    this.ro?.disconnect(); this.ro = null;
     document.removeEventListener('visibilitychange', this.onVisibility); window.removeEventListener('pagehide', this.flushSave);
     this.flushSave();
   }
