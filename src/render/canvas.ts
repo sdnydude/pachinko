@@ -12,6 +12,7 @@ export class Renderer {
   private dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
   private scale = 1; private ox = 0; private oy = 0;
   readonly ready: Promise<void>;
+  private lastTime = -1;
 
   constructor(private canvas: HTMLCanvasElement, private machine: Machine, private theme: Theme) {
     this.ctx = canvas.getContext('2d')!;
@@ -32,6 +33,7 @@ export class Renderer {
 
   draw(s: Snapshot, effects?: EffectsLike): void {
     const { ctx, theme: T, machine: M } = this; const P = T.palette; const L = M.layout;
+    const dt = this.lastTime < 0 ? 0 : Math.max(0, s.time - this.lastTime); this.lastTime = s.time;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = P.wall; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.dpr * this.scale, 0, 0, this.dpr * this.scale, this.dpr * this.ox, this.dpr * this.oy);
@@ -44,13 +46,13 @@ export class Renderer {
     for (let i = 0; i < L.pins.length; i++) {
       const p = L.pins[i]!;
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 0.6, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = i % T.jewelEvery === 2 ? P.jewel : P.pin; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = i % T.jewelEvery === 0 ? P.jewel : P.pin; ctx.fill();
       ctx.beginPath(); ctx.arc(p.x - 1, p.y - 1, 1.1, 0, Math.PI * 2); ctx.fillStyle = P.pinHi; ctx.fill();
     }
     // windmills
     L.windmills.forEach((w, i) => {
-      const spin = s.windmillSpin[i] ?? 0;                      // rad/s from the game; 1/60 ≈ one frame
-      this.windmillAngle[i] = (this.windmillAngle[i] ?? 0) + spin / 60;
+      const spin = s.windmillSpin[i] ?? 0;                      // rad/s from the game; integrated by elapsed sim time
+      this.windmillAngle[i] = (this.windmillAngle[i] ?? 0) + spin * dt;
       ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(this.windmillAngle[i]!);
       for (let k = 0; k < 4; k++) { ctx.fillStyle = P.windmill[k % P.windmill.length]!; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w.r + 3, -3); ctx.lineTo(w.r + 3, 3); ctx.closePath(); ctx.fill(); ctx.rotate(Math.PI / 2); }
       ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fillStyle = P.pinHi; ctx.fill(); ctx.restore();
