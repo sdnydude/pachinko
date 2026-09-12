@@ -5,14 +5,16 @@ export class Dial {
   private pointerId: number | null = null;
   private lastY = 0;
   private trimPerPixel: number;
+  private keyboard: boolean;
   private keyHeld = false;
-  constructor(private zone: HTMLElement, private target: DialTarget, opts?: { trimPerPixel?: number }) {
+  constructor(private zone: HTMLElement, private target: DialTarget, opts?: { trimPerPixel?: number; keyboard?: boolean }) {
     this.trimPerPixel = opts?.trimPerPixel ?? 1 / 150;
+    this.keyboard = opts?.keyboard ?? true;
     zone.style.touchAction = 'none';
     zone.addEventListener('pointerdown', this.down);
     zone.addEventListener('pointermove', this.move);
     zone.addEventListener('pointerup', this.up); zone.addEventListener('pointercancel', this.up);
-    window.addEventListener('keydown', this.key); window.addEventListener('keyup', this.key);
+    if (this.keyboard) { window.addEventListener('keydown', this.key); window.addEventListener('keyup', this.key); }
   }
   private down = (e: PointerEvent) => { if (this.pointerId !== null) return; this.pointerId = e.pointerId; this.lastY = e.clientY; this.zone.setPointerCapture(e.pointerId); this.target.setHeld(true); this.onActivity?.(); };
   private move = (e: PointerEvent) => { if (e.pointerId !== this.pointerId) return; const dy = this.lastY - e.clientY; if (Math.abs(dy) >= 3) { this.target.trim(dy * this.trimPerPixel); this.lastY = e.clientY; } };
@@ -25,6 +27,6 @@ export class Dial {
   destroy() {
     this.zone.removeEventListener('pointerdown', this.down); this.zone.removeEventListener('pointermove', this.move);
     this.zone.removeEventListener('pointerup', this.up); this.zone.removeEventListener('pointercancel', this.up);
-    window.removeEventListener('keydown', this.key); window.removeEventListener('keyup', this.key);
+    if (this.keyboard) { window.removeEventListener('keydown', this.key); window.removeEventListener('keyup', this.key); }
   }
 }

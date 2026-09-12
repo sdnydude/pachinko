@@ -15,10 +15,12 @@ export class Panel {
     root.insertAdjacentHTML('afterbegin', `<div class="pk-marquee" aria-hidden="true">${'<span class="lamp"></span>'.repeat(LAMPS)}</div>`);
     root.insertAdjacentHTML('beforeend', `
       <div class="pk-panel">
-        <div class="pk-tabs" role="tablist" aria-label="Machine">${MACHINE_ORDER.map(id => `<button role="tab" data-id="${id}" aria-pressed="false">${MACHINES[id].name}</button>`).join('')}</div>
-        <div class="pk-reels" aria-hidden="true"><span class="reel">7</span><span class="reel">7</span><span class="reel">7</span></div>
-        <div class="pk-bank"><div class="pk-label">Bank</div><div class="pk-num" data-f="bank">0</div></div>
-        <div class="pk-best"><div class="pk-label">Best</div><div class="pk-num" data-f="best">0</div></div>
+        <div class="pk-tabs" role="tablist" aria-label="Machine">${MACHINE_ORDER.map(id => `<button role="tab" data-id="${id}" aria-pressed="false" title="${MACHINES[id].name}">${MACHINES[id].name.replace(/^\S+\s/, '')}</button>`).join('')}</div>
+        <div class="pk-strip">
+          <div class="pk-reels" aria-hidden="true"><span class="reel">7</span><span class="reel">7</span><span class="reel">7</span></div>
+          <div class="pk-bank"><div class="pk-label">Bank</div><div class="pk-num" data-f="bank">0</div></div>
+          <div class="pk-best"><div class="pk-label">Best</div><div class="pk-num" data-f="best">0</div></div>
+        </div>
         <div class="pk-status" data-f="status"></div>
         <div class="pk-dial" role="slider" aria-label="Launch dial" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0" style="--strength:0"><div class="arc"></div><div class="knob"></div><div class="hint">HOLD TO SHOOT</div></div>
         <div class="pk-tools"><button data-a="mute" aria-pressed="false">Sound</button><button data-a="reset">Reset</button></div>
@@ -34,7 +36,10 @@ export class Panel {
   }
 
   setTheme(theme: Theme, id: MachineId): void {
-    this.theme = theme; const P = theme.palette; const s = this.root.style;
+    this.theme = theme; const P = theme.palette;
+    // Vars go on .pk-root (this.root's parent, the shell's host), not the shell itself: .pk-root's
+    // own background/color rule reads them, and overlays appended into the shell still inherit.
+    const s = (this.root.parentElement ?? this.root).style;
     s.setProperty('--pk-accent', P.panelAccent); s.setProperty('--pk-panel-bg', P.panelBg); s.setProperty('--pk-panel-fg', P.panelFg);
     s.setProperty('--pk-wall', P.wall); s.setProperty('--pk-display', theme.fonts.display); s.setProperty('--pk-body', theme.fonts.body);
     for (const b of this.root.querySelectorAll<HTMLButtonElement>('.pk-tabs button')) b.setAttribute('aria-pressed', String(b.dataset.id === id));

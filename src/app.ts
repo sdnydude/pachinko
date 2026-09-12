@@ -23,6 +23,7 @@ export class App {
   private boardDial!: Dial;
   private canvas: HTMLCanvasElement;
   private boardEl: HTMLElement;
+  private shellEl: HTMLElement;
   private save: SaveData = structuredClone(EMPTY_SAVE);
   private raf = 0; private last = 0; private running = false;
   private saveTimer = 0;
@@ -30,7 +31,7 @@ export class App {
   private machineId: MachineId;
   private seed: number;
   private panel!: Panel;
-  private idleFor = 0; private attract = false; private firstRunShown = false;
+  private idleFor = 0; private attract = false;
   private overlay: HTMLElement | null = null;
   private debugEl: HTMLElement | null = null; private debugOn = false;
   private fps = 0; private fpsAcc = 0; private fpsN = 0;
@@ -42,7 +43,8 @@ export class App {
     this.machineId = o.machine ?? 'raijin';
     this.seed = o.seed ?? (Date.now() >>> 0);
     o.root.classList.add('pk-root');
-    o.root.innerHTML = `<div class="pk-board"><canvas class="pk-canvas" aria-label="Pachinko board" role="img"></canvas></div>`;
+    o.root.innerHTML = `<div class="pk-shell"><div class="pk-board"><canvas class="pk-canvas" aria-label="Pachinko board" role="img"></canvas></div></div>`;
+    this.shellEl = o.root.querySelector('.pk-shell')!;
     this.boardEl = o.root.querySelector('.pk-board')!;
     this.canvas = o.root.querySelector('.pk-canvas')!;
     this.synth = new Synth(SOUND_SETS[this.machineId]);
@@ -50,7 +52,7 @@ export class App {
 
   async start(): Promise<void> {
     this.save = (await this.o.storage.load()) ?? structuredClone(EMPTY_SAVE);
-    this.panel = new Panel(this.o.root, {
+    this.panel = new Panel(this.shellEl, {
       onSwitch: id => void this.switchMachine(id),
       onMute: m => { this.synth.setMuted(m); this.setSaveField('mute', m); },
       onBuyIn: () => { this.game.buyIn(); this.closeOverlay(); },
@@ -59,7 +61,7 @@ export class App {
     await this.switchMachine(this.machineId);
     this.dial = new Dial(this.panel.dialEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) });
     this.dial.onActivity = () => this.activity();
-    this.boardDial = new Dial(this.boardEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) });
+    this.boardDial = new Dial(this.boardEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) }, { keyboard: false });
     this.boardDial.onActivity = () => this.activity();
     this.synth.setMuted(this.save.mute);
     this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(this.boardEl); this.fit();
@@ -111,7 +113,7 @@ export class App {
     this.panel.update(this.game.snapshot(), this.effects.lampPhase, this.effects.lampSpeed, this.synth.muted);
     this.idleFor += dt;
     if (!this.attract && this.idleFor > 20 && this.game.snapshot().phase !== 'idle') this.startAttract();
-    if (this.attract && Math.random() < dt * 1.6) this.game.fireAt(0.35 + Math.random() * 0.6, true);
+    if (this.attract && this.game.snapshot().phase !== 'idle' && Math.random() < dt * 1.6) this.game.fireAt(0.35 + Math.random() * 0.6, true);
     if (this.game.snapshot().needsBuyIn && !this.overlay) this.showBuyIn();
     if (ev.some(e => e.type === 'launch') && !this.attract && this.overlay?.classList.contains('first-run')) { this.closeOverlay(); this.setSaveField('firstRunDone', true); }
     if (this.debugOn) this.drawDebug(dt);
@@ -120,27 +122,29 @@ export class App {
   };
 
   private keys = (e: KeyboardEvent) => {
-    if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') void this.switchMachine(MACHINE_ORDER[Number(e.key) - 1]!);
+    const idx = Number(e.key) - 1;
+    if (Number.isInteger(idx) && MACHINE_ORDER[idx]) void this.switchMachine(MACHINE_ORDER[idx]);
     if (e.code === 'KeyM') { const m = !this.synth.muted; this.synth.setMuted(m); this.setSaveField('mute', m); }
     if (e.code === 'Backquote') { this.debugOn = !this.debugOn; this.debugEl?.remove(); this.debugEl = null; }
     this.activity();
   };
 
   private activity(): void { this.idleFor = 0; this.synth.resume(); if (this.attract) { this.attract = false; if (this.overlay?.classList.contains('first-run') && this.save.firstRunDone) this.closeOverlay(); } }
-  private startAttract(): void { this.attract = true; if (!this.overlay) this.showFirstRun(); }
+  private startAttract(): void { if (this.overlay?.classList.contains('buy-in')) return; this.attract = true; if (!this.overlay) this.showFirstRun(); }
   private showFirstRun(): void {
     this.openOverlay('first-run', `<h2>${THEMES[this.machineId].name}</h2><p>Hold to shoot.<br>Drag up or down to aim.<br>Land the center pocket.</p>`);
   }
   private showBuyIn(): void {
+    this.attract = false;
     const T = THEMES[this.machineId];
     this.openOverlay('buy-in', `<h2>Out of balls</h2><p>Session ${this.game.snapshot().buyIns + 1} · Won ${this.game.snapshot().sessionWon}</p><button data-a="buyin">${T.copy.buyIn}</button>`);
     this.overlay!.querySelector<HTMLButtonElement>('[data-a=buyin]')!.onclick = () => { this.game.buyIn(); this.closeOverlay(); this.activity(); };
   }
-  private openOverlay(kind: string, html: string): void { this.closeOverlay(); const d = document.createElement('div'); d.className = `pk-overlay ${kind}`; d.innerHTML = `<div class="card">${html}</div>`; this.o.root.appendChild(d); this.overlay = d; }
+  private openOverlay(kind: string, html: string): void { this.closeOverlay(); const d = document.createElement('div'); d.className = `pk-overlay ${kind}`; d.innerHTML = `<div class="card">${html}</div>`; this.shellEl.appendChild(d); this.overlay = d; }
   private closeOverlay(): void { this.overlay?.remove(); this.overlay = null; }
   private drawDebug(dt: number): void {
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc >= 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
-    if (!this.debugEl) { this.debugEl = document.createElement('div'); this.debugEl.className = 'pk-debug'; this.o.root.appendChild(this.debugEl); this.debugEl.onclick = () => void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?seed=${this.seed}&m=${this.machineId}`); }
+    if (!this.debugEl) { this.debugEl = document.createElement('div'); this.debugEl.className = 'pk-debug'; this.shellEl.appendChild(this.debugEl); this.debugEl.onclick = () => void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?seed=${this.seed}&m=${this.machineId}`).catch(() => {}); }
     const s = this.game.snapshot();
     this.debugEl.textContent = `fps ${this.fps}\nballs ${s.balls.length}\nphase ${s.phase}\nparticles ${this.effects.particleCount}\nseed ${this.seed} (click to copy link)`;
   }

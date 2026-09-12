@@ -1,11 +1,12 @@
-/* container-type lives on body, not .pk-root: a container cannot be queried by rules targeting itself */
-body { container-type: inline-size; }
-.pk-root { display: grid; gap: 0; background: var(--pk-panel-bg, #111); color: var(--pk-panel-fg, #eee); font-family: var(--pk-body, system-ui, sans-serif); }
+.pk-root { container-type: inline-size; background: var(--pk-panel-bg, #111); color: var(--pk-panel-fg, #eee); font-family: var(--pk-body, system-ui, sans-serif); }
+.pk-shell { display: grid; gap: 0; height: 100%; }
 .pk-marquee { height: 22px; display: none; background: #000; border-bottom: 2px solid var(--pk-accent); overflow: hidden; }
 .pk-marquee .lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 6px 5px 0; opacity: .25; background: var(--lamp, var(--pk-accent)); }
 .pk-marquee .lamp.on { opacity: 1; box-shadow: 0 0 6px var(--lamp, var(--pk-accent)); }
+@media (prefers-reduced-motion: reduce) { .pk-marquee .lamp { transition: none; } }
 .pk-board { position: relative; display: grid; place-items: center; background: var(--pk-wall, #000); min-height: 0; }
 .pk-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px; background: var(--pk-panel-bg); border-left: 2px solid var(--pk-accent); overflow: hidden; }
+.pk-strip { display: contents; }
 .pk-tabs { display: flex; gap: 6px; }
 .pk-tabs button { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--pk-accent); background: transparent; color: var(--pk-panel-fg); border-radius: 6px; font: 700 11px var(--pk-body); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
 .pk-tabs button[aria-pressed="true"] { background: var(--pk-accent); color: #000; }
@@ -31,14 +32,14 @@ body { container-type: inline-size; }
 
 /* ---- desktop / tablet landscape: board left (5:6 column), slim panel right, marquee on top ---- */
 @container (min-width: 1024px) {
-  .pk-root { grid-template-columns: 1fr 150px; grid-template-rows: 22px 1fr; grid-template-areas: "marquee marquee" "board panel"; }
+  .pk-shell { grid-template-columns: 1fr 150px; grid-template-rows: 22px 1fr; grid-template-areas: "marquee marquee" "board panel"; }
   .pk-marquee { display: block; grid-area: marquee; }
   .pk-board { grid-area: board; }
   .pk-panel { grid-area: panel; grid-auto-rows: max-content; align-content: start; }
 }
 /* ---- tablet portrait: board on top, bottom bar ---- */
 @container (min-width: 768px) and (max-width: 1023.98px) {
-  .pk-root { grid-template-rows: 22px 1fr 140px; grid-template-areas: "marquee" "board" "panel"; }
+  .pk-shell { grid-template-rows: 22px 1fr 140px; grid-template-areas: "marquee" "board" "panel"; }
   .pk-marquee { display: block; grid-area: marquee; }
   .pk-board { grid-area: board; }
   .pk-panel { grid-area: panel; grid-template-columns: 110px 130px 1fr 1fr 96px; grid-template-areas: "tabs reels bank status dial" "tools reels best status dial"; align-items: center; border-left: 0; border-top: 2px solid var(--pk-accent); }
@@ -49,11 +50,11 @@ body { container-type: inline-size; }
 }
 /* ---- phone: top strip, board, status, tabs, thumb zone ---- */
 @container (max-width: 767.98px) {
-  .pk-root { grid-template-rows: 56px 1fr auto auto 96px; grid-template-areas: "strip" "board" "status" "tabs" "dial"; }
+  .pk-shell { grid-template-rows: 56px 1fr auto auto 96px; grid-template-areas: "strip" "board" "status" "tabs" "dial"; }
   .pk-panel { display: contents; }
-  .pk-reels { grid-area: strip; grid-template-columns: 96px 1fr 1fr; font-size: 22px; border-radius: 0; border-width: 0 0 2px; }
-  .pk-reels .reel:nth-child(n+4) { display: none; }
-  .pk-bank, .pk-best { grid-area: strip; align-self: center; justify-self: end; padding: 4px 12px; background: var(--pk-panel-bg); } .pk-best { justify-self: center; }
+  .pk-strip { grid-area: strip; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 0 12px; background: var(--pk-panel-bg); border-bottom: 2px solid var(--pk-accent); }
+  .pk-reels { font-size: 22px; border-radius: 0; }
+  .pk-bank, .pk-best { text-align: right; }
   .pk-num { font-size: 20px; }
   .pk-board { grid-area: board; }
   .pk-status { grid-area: status; padding: 4px 10px; min-height: 22px; font-size: 11px; }
