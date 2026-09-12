@@ -1,0 +1,10 @@
+import '../src/app.css';
+import { App } from '../src/app';
+import { LocalStorage } from '../src/storage/local';
+import type { MachineId } from '../src/core/machine';
+const q = new URLSearchParams(location.search);
+const seed = q.get('seed') ? Number(q.get('seed')) : undefined;
+const machine = (q.get('m') as MachineId | null) ?? undefined;
+const app = new App({ root: document.getElementById('app')!, storage: new LocalStorage(), seed, machine });
+void app.start();
+(window as unknown as { pachinko: App }).pachinko = app;
