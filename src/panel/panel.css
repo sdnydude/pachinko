@@ -5,7 +5,8 @@
 .pk-marquee .lamp.on { opacity: 1; box-shadow: 0 0 6px var(--lamp, var(--pk-accent)); }
 @media (prefers-reduced-motion: reduce) { .pk-marquee .lamp { transition: none; } }
 /* gutters: theme wall color under a faint 45° parlor-wall stripe in the accent */
-.pk-board { position: relative; display: grid; place-items: center; min-height: 0; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--pk-accent, #fff) 6%, transparent) 0 3px, transparent 3px 14px), var(--pk-wall, #000); }
+.pk-board { position: relative; display: grid; place-items: center; min-height: 0; background: repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 3px, transparent 3px 14px), var(--pk-wall, #000); }
+@supports (color: color-mix(in srgb, red, blue)) { .pk-board { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--pk-accent, #fff) 6%, transparent) 0 3px, transparent 3px 14px), var(--pk-wall, #000); } }
 .pk-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px; background: var(--pk-panel-bg); border-left: 2px solid var(--pk-accent); overflow: hidden; }
 .pk-strip { display: contents; }
 .pk-tabs { display: flex; gap: 6px; touch-action: pan-y; }
@@ -42,7 +43,7 @@
   .pk-shell { grid-template-columns: 1fr 150px; grid-template-rows: 22px 1fr; grid-template-areas: "marquee marquee" "board panel"; }
   .pk-marquee { display: block; grid-area: marquee; }
   .pk-board { grid-area: board; }
-  .pk-panel { grid-area: panel; grid-auto-rows: max-content; align-content: start; }
+  .pk-panel { grid-area: panel; grid-auto-rows: max-content; align-content: start; overflow-y: auto; }   /* stacked tabs need ~550px; short desktop windows scroll instead of clipping Sound/Reset */
   .pk-tabs { flex-direction: column; } .pk-tabs button { height: 28px; }
   .pk-dial { margin-bottom: 24px; }   /* room for the absolute HOLD TO SHOOT caption above Sound/Reset */
 }

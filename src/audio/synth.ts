@@ -38,12 +38,15 @@ export class Synth {
     o.type = type; o.frequency.value = freq; g.gain.value = 0;
     g.gain.setValueAtTime(0, c.currentTime + at); g.gain.linearRampToValueAtTime(gain, c.currentTime + at + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + at + ms / 1000);
     o.connect(g).connect(c.destination); o.start(c.currentTime + at); o.stop(c.currentTime + at + ms / 1000 + 0.02);
+    o.onended = () => { o.disconnect(); g.disconnect(); };
   }
-  private arp(notes: number[], stepMs = 90, type: OscillatorType = 'triangle') { notes.forEach((n, i) => this.beep(n, type, stepMs * 1.2, 0.1, (i * stepMs) / 1000)); }
+  /** Every note counts against the per-second cap; a denied note is dropped, the rest of the run keeps its timing. */
+  private arp(notes: number[], stepMs = 90, type: OscillatorType = 'triangle') { notes.forEach((n, i) => { if (this.allow()) this.beep(n, type, stepMs * 1.2, 0.1, (i * stepMs) / 1000); }); }
   private startLoop() {
     if (this.loop || this.muted || !this.ctx) return;
     const { notes, bpm } = this.set.jackpotLoop; const ms = 60000 / bpm;
-    const tick = () => { if (!this.loop) return; this.beep(notes[this.loop.i % notes.length]!, 'triangle', ms * 0.8, 0.07); this.loop.i++; };
+    // the interval keeps the beat; a tick the cap denies is skipped (i still advances) so the melody does not drift
+    const tick = () => { if (!this.loop) return; if (this.allow()) this.beep(notes[this.loop.i % notes.length]!, 'triangle', ms * 0.8, 0.07); this.loop.i++; };
     this.loop = { timer: window.setInterval(tick, ms), i: 0 }; tick();
   }
   private stopLoop() { if (this.loop) { clearInterval(this.loop.timer); this.loop = null; } }
@@ -55,15 +58,15 @@ export class Synth {
         case 'pin': if (this.allow()) this.beep(S.click.freq * (0.8 + Math.min(1, e.speed / 500) * 0.4), S.click.type, S.click.ms, 0.05); break;
         case 'windmill': if (this.allow()) this.beep(S.whir.freq, S.whir.type, S.whir.ms, 0.04); break;
         case 'tulip': if (this.allow()) this.beep(S.clack.freq, S.clack.type, S.clack.ms, 0.06); break;
-        case 'catch': if (e.payout > 0 && !e.free && this.allow()) this.arp(S.chime, 70); break;
-        case 'reachStart': if (this.allow()) this.arp(S.reachChime, 110); break;
+        case 'catch': if (e.payout > 0 && !e.free) this.arp(S.chime, 70); break;
+        case 'reachStart': this.arp(S.reachChime, 110); break;
         case 'reelStop':
           if (this.allow()) this.beep(S.tick.freq, S.tick.type, S.tick.ms, 0.06);
           if (e.reel === 1 && e.tension) this.startTicks(); else if (e.reel === 2) this.stopTicks();
           break;
-        case 'jackpotOpen': this.stopTicks(); if (this.allow()) { this.arp([...S.reachChime, S.reachChime[S.reachChime.length - 1]! * 2], 80); this.startLoop(); } break;
-        case 'attackerCatch': if (!e.free && this.allow()) this.arp(S.chime, 50, 'square'); break;
-        case 'jackpotClose': this.stopLoop(); if (this.allow()) this.arp(S.close, 120); break;
+        case 'jackpotOpen': this.stopTicks(); this.arp([...S.reachChime, S.reachChime[S.reachChime.length - 1]! * 2], 80); this.startLoop(); break;
+        case 'attackerCatch': if (!e.free) this.arp(S.chime, 50, 'square'); break;
+        case 'jackpotClose': this.stopLoop(); this.arp(S.close, 120); break;
       }
     }
   }

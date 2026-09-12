@@ -19,6 +19,7 @@ export function loadCel(url: string, w: number, h: number, dpr: number): Promise
       img.src = url;
     });
     cache.set(key, p);
+    p.catch(() => cache.delete(key));   // a failed load must not poison later retries (attached after set: onerror may fire synchronously)
   }
   return p;
 }
