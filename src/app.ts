@@ -28,6 +28,7 @@ export class App {
   private shellEl: HTMLElement;
   private save: SaveData = structuredClone(EMPTY_SAVE);
   private raf = 0; private last = 0; private running = false;
+  private stopped = false;
   private saveTimer = 0;
   private ro: ResizeObserver | null = null;
   private machineId: MachineId;
@@ -54,6 +55,7 @@ export class App {
 
   async start(): Promise<void> {
     this.save = (await this.o.storage.load()) ?? structuredClone(EMPTY_SAVE);
+    if (this.stopped) return;
     this.panel = new Panel(this.shellEl, {
       onSwitch: id => void this.switchMachine(id),
       onMute: m => { this.synth.setMuted(m); this.setSaveField('mute', m); },
@@ -61,6 +63,7 @@ export class App {
       onReset: () => { this.save.perMachine[this.machineId] = undefined; void this.switchMachine(this.machineId); },
     });
     await this.switchMachine(this.machineId);
+    if (this.stopped) return;
     this.dial = new Dial(this.panel.dialEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) });
     this.dial.onActivity = () => this.activity();
     this.boardDial = new Dial(this.boardEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) }, { keyboard: false });
@@ -75,12 +78,13 @@ export class App {
   }
 
   stop(): void {
+    this.stopped = true;
     this.running = false; cancelAnimationFrame(this.raf); this.dial?.destroy(); this.boardDial?.destroy();
     this.synth.dispose();
     this.ro?.disconnect(); this.ro = null;
     document.removeEventListener('visibilitychange', this.onVisibility); window.removeEventListener('pagehide', this.flushSave);
     window.removeEventListener('keydown', this.keys);
-    this.flushSave();
+    if (this.game) this.flushSave();
   }
 
   async switchMachine(id: MachineId): Promise<void> {

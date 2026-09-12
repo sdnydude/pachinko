@@ -10,9 +10,8 @@ export default function PachinkoClient({ machine }: { machine?: MachineId }) {
   useEffect(() => {
     if (!ref.current) return;
     const app = new App({ root: ref.current, storage: new LocalStorage(), machine });
-    // React StrictMode runs cleanup before start() resolves; stop() must wait for it.
-    const started = app.start();
-    return () => { void started.then(() => app.stop()); };
+    void app.start();
+    return () => app.stop();
   }, [machine]);
   return <div ref={ref} style={{ height: '100dvh' }} />;
 }

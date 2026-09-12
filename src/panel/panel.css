@@ -57,7 +57,8 @@
   .pk-reels { font-size: 22px; border-radius: 0; }
   .pk-bank, .pk-best { text-align: right; }
   .pk-num { font-size: 20px; }
-  .pk-board { grid-area: board; aspect-ratio: 5 / 6; width: 100%; justify-self: center; max-height: calc(100cqh - 56px - 30px - 38px - 110px); }
+  /* cap mirrors the other rows: strip 56, status max 70 (4 lines), tabs 34+4 pad, dial 96+6+8 margins */
+  .pk-board { grid-area: board; aspect-ratio: 5 / 6; width: 100%; max-height: calc(100cqh - 56px - 70px - 38px - 110px); }
   .pk-status { grid-area: status; padding: 4px 10px; min-height: 22px; font-size: 11px; }
   .pk-tabs { grid-area: tabs; padding: 0 8px 4px; }
   .pk-dial { grid-area: dial; width: auto; height: auto; min-height: 96px; margin: 0 8px 8px; border-radius: 14px; }
