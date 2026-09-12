@@ -1,0 +1,12 @@
+import '../src/app.css';
+import { App } from '../src/app';
+import { LocalStorage } from '../src/storage/local';
+import { MACHINES, type MachineId } from '../src/core/machine';
+const q = new URLSearchParams(location.search);
+const rawSeed = Number(q.get('seed'));
+const seed = q.get('seed') !== null && Number.isFinite(rawSeed) ? rawSeed >>> 0 : undefined;
+const m = q.get('m');
+const machine = m !== null && Object.hasOwn(MACHINES, m) ? (m as MachineId) : undefined;
+const app = new App({ root: document.getElementById('app')!, storage: new LocalStorage(), seed, machine });
+void app.start();
+(window as unknown as { pachinko: App }).pachinko = app;

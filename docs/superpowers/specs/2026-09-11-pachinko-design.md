@@ -68,6 +68,8 @@ is clamped so a long stall never spirals.
   visual), tulips (catchers with animated wings; wings are open or closed
   and change the catch width), start chucker, win pockets, out pockets,
   floor drain, attacker (wide gate, closed unless jackpot).
+- Gadget collision is implemented as solid circles (mask, flower) and
+  roof-peaked rect outlines (LCD frame, reel bezels).
 - Ball: radius 5.5, gravity, restitution 0.55 on pins, 0.35 on walls, mild
   air drag. Launch velocity is a function of strength plus 2 % seeded
   jitter. Max 15 balls in flight; the launcher waits if at cap.
@@ -107,7 +109,9 @@ No currency, no real-money wording anywhere.
 
 **Launch.** Hold the dial: strength ramps 0 → 1 over 1.2 s. Release fires.
 Holding past the ramp auto-fires every 600 ms at the held strength.
-Drag up/down (or arrow keys) trims strength while held.
+Drag up/down (or arrow keys) trims strength while held. Trimming adjusts
+strength without cancelling the ramp; auto-fire begins once the hold reaches
+1.2 s.
 
 **Reach.** Start chucker hit → +3 balls, one reach is queued (max 4). If
 idle, it starts: outcome decided now by RNG at the machine's odds; three
@@ -124,7 +128,7 @@ jackpot, and the bank. "Best" in the panel is the best session total.
 
 **Attract mode.** After 20 s idle with no input, balls fire at random
 strength, bank is not charged, and the first-run overlay is shown. Any
-input ends it.
+input ends it. Attract balls neither charge nor pay the bank.
 
 **First run.** Three-line overlay ("Hold to shoot. Drag to aim. Land the
 center pocket."), dismissed on the first shot. Never shown again after that
@@ -216,7 +220,9 @@ Tests that gate "done":
   within 30 s sim time; no NaN; no ball out of bounds; balls in flight
   never exceed 15.
 - Balance: from the soak, return rate per machine per strength printed as
-  a table; outside jackpot must land in 85–95 %.
+  a table; outside jackpot must land in 85–95 %. The guard takes the mean of
+  two seeds per strength, requires the best of 0.4–0.8 to sit at least 1.5
+  points inside the band, and caps every strength 0.2–1.0 at 100 %.
 - Playwright smoke: each machine at phone/tablet/desktop, one screenshot
   each, no console errors.
 

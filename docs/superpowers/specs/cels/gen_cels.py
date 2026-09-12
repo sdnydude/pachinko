@@ -61,9 +61,10 @@ def hana_fan():
         b.append(f'<path d="M{60+i*75} 690 q35 -70 70 -18" stroke="#2f6f9f" stroke-width="5" fill="none" opacity=".3" stroke-linecap="round"/>')
     # rail channel (static art; physics has its own geometry)
     b.append('<path d="M20 720 L20 120 Q20 60 80 60 L200 60" stroke="url(#rail)" stroke-width="22" fill="none"/>')
-    # marquee + copy
-    b.append(f'<text x="{cx}" y="44" font-family="Impact, Arial Black, sans-serif" font-size="40" fill="#b3261e" stroke="#fff3c4" stroke-width="1.5" text-anchor="middle" letter-spacing="4">花扇 HANA FAN</text>')
-    b.append(f'<text x="{cx}" y="66" font-family="Georgia, serif" font-size="13" fill="#5a2b12" text-anchor="middle" letter-spacing="5">DELUXE • 13 BALLS PER WIN • 1976</text>')
+    # marquee + copy (no stroke on titles: Chromium paints fallback CJK glyphs stroke-only when both are set;
+    # subtitle sits below the rail band y 49..71, which spans x<=200)
+    b.append(f'<text x="{cx}" y="44" font-family="Impact, Arial Black, sans-serif" font-size="40" fill="#b3261e" text-anchor="middle" letter-spacing="4">花扇 HANA FAN</text>')
+    b.append(f'<text x="{cx}" y="84" font-family="Georgia, serif" font-size="13" fill="#5a2b12" text-anchor="middle" letter-spacing="5">DELUXE • 13 BALLS PER WIN • 1976</text>')
     # spinning-flower gadget (static petals; hub glows via renderer lamp)
     b.append(f'<circle cx="{cx}" cy="{cy}" r="82" fill="#fff3c4" stroke="#c9a24a" stroke-width="5"/>')
     for i in range(10):
@@ -73,9 +74,9 @@ def hana_fan():
     # reel bezel (reels drawn by renderer inside 250,340,140,40)
     b.append('<rect x="244" y="334" width="152" height="52" rx="6" fill="#3a1a0a" stroke="#c9a24a" stroke-width="3"/>')
     b.append(f'<text x="{cx}" y="412" font-family="Georgia, serif" font-size="12" fill="#5a2b12" text-anchor="middle" letter-spacing="3">リーチ • REACH</text>')
-    # printed labels near catchers and attacker
+    # printed labels near catchers and attacker (footer at 684: renderer's pocket row covers y 698..714)
     b.append('<text x="320" y="592" font-family="Arial Black, sans-serif" font-size="14" fill="#7a1a12" text-anchor="middle" letter-spacing="3">大当り FEVER</text>')
-    b.append('<text x="320" y="716" font-family="Georgia, serif" font-size="11" fill="#5a2b12" text-anchor="middle" letter-spacing="4">DHG 遊技機 • NAGOYA</text>')
+    b.append('<text x="320" y="684" font-family="Georgia, serif" font-size="11" fill="#5a2b12" text-anchor="middle" letter-spacing="4">DHG 遊技機 • NAGOYA</text>')
     return svg("\n".join(b), defs)
 
 
@@ -108,10 +109,10 @@ def big_wave():
     b.append(f'<path d="M{lx} {ly+lh-40} q40 -28 80 0 t80 0 t80 0 L{lx+lw} {ly+lh} L{lx} {ly+lh}z" fill="#0b6fb5" opacity=".8"/>')
     b.append(f'<text x="{cx}" y="{ly+30}" font-family="Impact, Arial Black, sans-serif" font-size="20" fill="#fff" text-anchor="middle" letter-spacing="4">リーチ!! REACH</text>')
     b.append(f'<text x="{cx}" y="{ly+lh-12}" font-family="Arial, sans-serif" font-size="12" fill="#bff3ff" text-anchor="middle" letter-spacing="3">確変 KAKUHEN 1/8 • 右打ち →</text>')
-    b.append(f'<text x="{cx}" y="{ly+lh+38}" font-family="Arial Black, sans-serif" font-size="11" fill="#5a4310" text-anchor="middle" letter-spacing="2">START</text>')
+    # (no START label under the LCD: the renderer's electric tulip at 320,372 sits there and carries its own "S" tag)
     # attacker label (attacker itself is on the RIGHT: 430..570 x 600)
     b.append('<text x="500" y="590" font-family="Impact, Arial Black, sans-serif" font-size="16" fill="#ffd23f" text-anchor="middle" letter-spacing="3">大当り ATTACKER</text>')
-    b.append('<text x="320" y="716" font-family="Arial Black, sans-serif" font-size="11" fill="#ffd23f" text-anchor="middle" letter-spacing="4">DHG AMUSEMENT • SMART PACHINKO</text>')
+    b.append('<text x="320" y="684" font-family="Arial Black, sans-serif" font-size="11" fill="#ffd23f" text-anchor="middle" letter-spacing="4">DHG AMUSEMENT • SMART PACHINKO</text>')
     return svg("\n".join(b), defs)
 
 
@@ -133,8 +134,9 @@ def raijin():
     b.append('<path d="M70 80 l50 100 l-30 6 l66 116 l-33 4 l46 84" stroke="#ffe600" stroke-width="5" fill="none" filter="url(#glow)" opacity=".85"/>')
     b.append('<path d="M540 90 l-44 92 l27 6 l-60 110 l30 5 l-40 78" stroke="#ffe600" stroke-width="5" fill="none" filter="url(#glow)" opacity=".85"/>')
     b.append('<path d="M20 720 L20 120 Q20 60 80 60 L200 60" stroke="url(#rail)" stroke-width="22" fill="none"/>')
-    b.append(f'<text x="{cx}" y="48" font-family="Impact, Arial Black, sans-serif" font-size="46" fill="url(#gold)" stroke="#2a0404" stroke-width="1.5" text-anchor="middle" letter-spacing="6">雷神 RAIJIN</text>')
-    b.append(f'<text x="{cx}" y="70" font-family="Arial, sans-serif" font-size="12" fill="#ffd75e" text-anchor="middle" letter-spacing="6">THUNDER GOD • MAX TYPE • 1/16</text>')
+    # title has no stroke (Chromium paints fallback CJK glyphs stroke-only when both are set); subtitle clears the rail band y 49..71
+    b.append(f'<text x="{cx}" y="48" font-family="Impact, Arial Black, sans-serif" font-size="46" fill="url(#gold)" text-anchor="middle" letter-spacing="6">雷神 RAIJIN</text>')
+    b.append(f'<text x="{cx}" y="84" font-family="Arial, sans-serif" font-size="12" fill="#ffd75e" text-anchor="middle" letter-spacing="6">THUNDER GOD • MAX TYPE • 1/16</text>')
     # kabuki mask gadget
     b.append(f'<ellipse cx="{cx}" cy="{cy}" rx="96" ry="108" fill="url(#gold)" stroke="#2a0404" stroke-width="3"/>')
     b.append(f'<ellipse cx="{cx}" cy="{cy}" rx="76" ry="88" fill="#fff3e0"/>')
@@ -147,7 +149,7 @@ def raijin():
     b.append('<rect x="232" y="364" width="176" height="60" rx="8" fill="#111" stroke="#d4a017" stroke-width="3"/>')
     b.append(f'<text x="{cx}" y="450" font-family="Impact, Arial Black, sans-serif" font-size="18" fill="#ffe600" text-anchor="middle" letter-spacing="5" filter="url(#glow)">激アツ REACH</text>')
     b.append('<text x="320" y="592" font-family="Impact, Arial Black, sans-serif" font-size="16" fill="#ffd75e" text-anchor="middle" letter-spacing="4">大当り JACKPOT</text>')
-    b.append('<text x="320" y="716" font-family="Impact, Arial Black, sans-serif" font-size="11" fill="#d4a017" text-anchor="middle" letter-spacing="5">DHG LABS • 遊技機 • TYPE R</text>')
+    b.append('<text x="320" y="684" font-family="Impact, Arial Black, sans-serif" font-size="11" fill="#d4a017" text-anchor="middle" letter-spacing="5">DHG LABS • 遊技機 • TYPE R</text>')
     return svg("\n".join(b), defs)
 
 
