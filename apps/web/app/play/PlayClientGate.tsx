@@ -4,6 +4,6 @@ import type { MachineId } from 'pachinko';
 
 const PachinkoClient = dynamic(() => import('./PachinkoClient'), { ssr: false });
 
-export default function PlayClientGate({ machine }: { machine?: MachineId }) {
-  return <PachinkoClient machine={machine} />;
+export default function PlayClientGate({ machine, seed }: { machine?: MachineId; seed?: number }) {
+  return <PachinkoClient machine={machine} seed={seed} />;
 }
