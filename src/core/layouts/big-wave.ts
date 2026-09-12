@@ -5,7 +5,7 @@ export const BIG_WAVE_LAYOUT = buildLayout({
   catchers: [
     tulip('e-chucker', 'start', 320, 372, 3),                  // electric start tulip under the LCD
     tulip('tulip-l', 'win', 100, 420, 5), tulip('tulip-r', 'win', 540, 420, 5),
-    ...bottomRow(3),
+    ...bottomRow(3, 9),                                         // narrower win pockets to bring return into 85-95%
   ],
   attacker: attacker(500, 15),                                // right side → right-shoot
   reelRect: { x: 220, y: 200, w: 200, h: 90 },

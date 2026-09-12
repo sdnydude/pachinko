@@ -3,9 +3,9 @@ export const HANA_FAN_LAYOUT = buildLayout({
   skipRects: [{ x: 214, y: 134, w: 212, h: 260 }],           // spinning flower + reel bezel
   windmills: [{ x: 120, y: 240, r: 10 }, { x: 520, y: 240, r: 10 }, { x: 320, y: 460, r: 10 }],
   catchers: [
-    tulip('tulip-1', 'win', 110, 380, 5), tulip('tulip-2', 'win', 530, 380, 5),
-    tulip('tulip-3', 'win', 200, 520, 5), tulip('tulip-4', 'win', 440, 520, 5),
-    ...bottomRow(3),
+    tulip('tulip-1', 'win', 110, 380, 5, 11.5, 3), tulip('tulip-2', 'win', 530, 380, 5, 11.5, 3),
+    tulip('tulip-3', 'win', 200, 520, 5, 11.5, 3), tulip('tulip-4', 'win', 440, 520, 5, 11.5, 3),
+    ...bottomRow(3, 8),                                         // narrower win pockets + tulip mouths to bring return into 85-95%
   ],
   attacker: attacker(320, 13),
   reelRect: { x: 250, y: 340, w: 140, h: 40 },
