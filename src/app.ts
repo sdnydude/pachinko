@@ -5,12 +5,17 @@ import { THEMES } from './render/themes/index';
 import { Dial } from './input/dial';
 import { EMPTY_SAVE, type SaveData, type Storage } from './storage/types';
 import { BOARD_W, BOARD_H } from './core/board';
+import { Effects } from './render/effects';
+import { Synth } from './audio/synth';
+import { SOUND_SETS } from './audio/sets';
 
 export interface AppOptions { root: HTMLElement; storage: Storage; machine?: MachineId; seed?: number }
 
 export class App {
   game!: Game;
   private renderer!: Renderer;
+  effects!: Effects;
+  synth: Synth;
   private dial!: Dial;
   private canvas: HTMLCanvasElement;
   private boardEl: HTMLElement;
@@ -31,12 +36,15 @@ export class App {
     o.root.innerHTML = `<div class="pk-board"><canvas class="pk-canvas" aria-label="Pachinko board" role="img"></canvas></div>`;
     this.boardEl = o.root.querySelector('.pk-board')!;
     this.canvas = o.root.querySelector('.pk-canvas')!;
+    this.synth = new Synth(SOUND_SETS[this.machineId]);
   }
 
   async start(): Promise<void> {
     this.save = (await this.o.storage.load()) ?? structuredClone(EMPTY_SAVE);
     await this.switchMachine(this.machineId);
     this.dial = new Dial(this.boardEl, { setHeld: h => this.game.setHeld(h), trim: d => this.game.trim(d) });
+    this.dial.onActivity = () => this.synth.resume();
+    this.synth.setMuted(this.save.mute);
     this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(this.boardEl); this.fit();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.flushSave);
@@ -56,6 +64,9 @@ export class App {
     const m = MACHINES[id];
     this.game = new Game(m, this.seed ^ MACHINE_ORDER.indexOf(id), this.save.perMachine[id]);
     this.renderer = new Renderer(this.canvas, m, THEMES[id]);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.effects = new Effects(THEMES[id], m.layout, { reducedMotion: reduced });
+    this.synth.setSet(SOUND_SETS[id]);
     this.o.root.dataset.machine = id;
     await this.renderer.ready;
     this.fit();
@@ -73,7 +84,8 @@ export class App {
     const ev = this.game.tick(dt);
     for (const l of this.listeners) l(ev, this.game);
     for (const h of this.frameHooks) h(dt);
-    this.renderer.draw(this.game.snapshot());
+    this.effects.onEvents(ev, this.game.snapshot()); this.effects.update(dt); this.synth.onEvents(ev);
+    this.renderer.draw(this.game.snapshot(), this.effects);
     if (ev.some(e => e.type === 'catch' || e.type === 'launch' || e.type === 'attackerCatch' || e.type === 'jackpotClose')) this.scheduleSave();
     this.raf = requestAnimationFrame(this.frame);
   };
