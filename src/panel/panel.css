@@ -1,4 +1,4 @@
-.pk-root { container-type: inline-size; background: var(--pk-panel-bg, #111); color: var(--pk-panel-fg, #eee); font-family: var(--pk-body, system-ui, sans-serif); }
+.pk-root { container-type: size; background: var(--pk-panel-bg, #111); color: var(--pk-panel-fg, #eee); font-family: var(--pk-body, system-ui, sans-serif); }
 .pk-shell { display: grid; gap: 0; height: 100%; }
 .pk-marquee { height: 22px; display: none; background: #000; border-bottom: 2px solid var(--pk-accent); overflow: hidden; }
 .pk-marquee .lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 6px 5px 0; opacity: .25; background: var(--lamp, var(--pk-accent)); }
@@ -57,7 +57,7 @@
   .pk-reels { font-size: 22px; border-radius: 0; }
   .pk-bank, .pk-best { text-align: right; }
   .pk-num { font-size: 20px; }
-  .pk-board { grid-area: board; aspect-ratio: 5 / 6; width: 100%; }
+  .pk-board { grid-area: board; aspect-ratio: 5 / 6; width: 100%; justify-self: center; max-height: calc(100cqh - 56px - 30px - 38px - 110px); }
   .pk-status { grid-area: status; padding: 4px 10px; min-height: 22px; font-size: 11px; }
   .pk-tabs { grid-area: tabs; padding: 0 8px 4px; }
   .pk-dial { grid-area: dial; width: auto; height: auto; min-height: 96px; margin: 0 8px 8px; border-radius: 14px; }
