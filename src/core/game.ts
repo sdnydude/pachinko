@@ -142,9 +142,83 @@ export class Game {
     for (let i = 0; i < this.windmillSpin.length; i++) this.windmillSpin[i]! *= 1 - 1.5 * DT;
   }
 
-  // Filled in Task 6. For now: no catchers, no phase changes.
-  private tryCatch(_b: Ball, _ev: GameEvent[]): boolean { return false; }
-  private stepPhase(_ev: GameEvent[]): void {}
+  private tryCatch(b: Ball, ev: GameEvent[]): boolean {
+    const L = this.machine.layout;
+    if (this.phase === 'jackpot' && this.jackpot && catcherHit(b, L.attacker, L.attacker.halfWidth)) {
+      const pay = this.machine.tuning.attackerPayout;
+      this.jackpot.caught++; this.jackpot.total += pay; this.award(pay);
+      ev.push({ type: 'attackerCatch', payout: pay, caught: this.jackpot.caught, x: b.x, y: b.y });
+      return true;
+    }
+    for (const c of L.catchers) {
+      const hw = c.tulip ? (this.tulipOpen[c.id] ? c.tulip.openHalfWidth : c.tulip.closedHalfWidth) : c.halfWidth;
+      if (!catcherHit(b, c, hw)) continue;
+      this.award(c.payout);
+      ev.push({ type: 'catch', catcherId: c.id, kind: c.kind, payout: c.payout, x: b.x, y: b.y });
+      if (c.tulip) { this.tulipOpen[c.id] = !this.tulipOpen[c.id]; ev.push({ type: 'tulip', catcherId: c.id, open: this.tulipOpen[c.id]! }); }
+      if (c.kind === 'start') this.queueReach(ev);
+      return true;
+    }
+    return false;
+  }
+
+  private award(n: number): void {
+    if (n <= 0) return;
+    this.bank += n; this.sessionWon += n;
+    if (this.sessionWon > this.bestSession) this.bestSession = this.sessionWon;
+  }
+
+  private queueReach(ev: GameEvent[]): void {
+    if (this.phase === 'playing') { this.startReach(ev); return; }
+    if (this.reachQueue < REACH_QUEUE_MAX) this.reachQueue++;
+  }
+
+  private startReach(ev: GameEvent[]): void {
+    const win = this.rng.next() < 1 / this.machine.tuning.reachOdds;
+    let digits: [number, number, number]; let tension = false;
+    if (win) { const d = this.rng.int(10); digits = [d, d, d]; tension = true; }
+    else {
+      tension = this.rng.next() < 1 / 3;
+      if (tension) { const d = this.rng.int(10); digits = [d, d, (d + 1 + this.rng.int(9)) % 10]; }
+      else { const a = this.rng.int(10); const b = (a + 1 + this.rng.int(9)) % 10; digits = [a, b, this.rng.int(10)]; }
+    }
+    this.reach = { t: 0, digits, win, tension, stopAt: [REEL_STOP[0], REEL_STOP[1], REEL_STOP[2] + (tension ? REEL_TENSION : 0)], stopped: [false, false, false] };
+    this.phase = 'reach';
+    ev.push({ type: 'reachStart' });
+  }
+
+  private stepPhase(ev: GameEvent[]): void {
+    if (this.phase === 'playing') {
+      if (this.reachQueue > 0) { this.reachQueue--; this.startReach(ev); }
+      return;
+    }
+    if (this.phase === 'reach' && this.reach) {
+      const r = this.reach; r.t += DT;
+      for (let i = 0; i < 3; i++) {
+        if (!r.stopped[i] && r.t >= r.stopAt[i]! - 1e-9) { r.stopped[i] = true; ev.push({ type: 'reelStop', reel: i as 0 | 1 | 2, digit: r.digits[i]!, tension: r.tension }); }
+      }
+      if (r.stopped[2]) {
+        if (r.win) { this.lastDigits = r.digits; this.reach = null; this.openJackpot(ev); }
+        else if (r.t >= r.stopAt[2] + MISS_HOLD - 1e-9) { this.lastDigits = r.digits; this.reach = null; this.phase = 'playing'; ev.push({ type: 'reachMiss' }); }
+      }
+      return;
+    }
+    if (this.phase === 'jackpot' && this.jackpot) {
+      const j = this.jackpot; j.t += DT;
+      const t = this.machine.tuning;
+      if (j.t >= t.jackpotSeconds - 1e-9 || j.caught >= t.jackpotBalls) {
+        if (j.total > this.biggestJackpot) this.biggestJackpot = j.total;
+        ev.push({ type: 'jackpotClose', total: j.total });
+        this.jackpot = null; this.phase = 'playing';
+      }
+    }
+  }
+
+  private openJackpot(ev: GameEvent[]): void {
+    this.jackpot = { t: 0, caught: 0, total: 0 };
+    this.phase = 'jackpot';
+    ev.push({ type: 'jackpotOpen' });
+  }
 
   private checkBankEmpty(ev: GameEvent[]): void {
     if (this.phase === 'playing' && this.bank <= 0 && this.balls.length === 0 && this.reachQueue === 0) {
