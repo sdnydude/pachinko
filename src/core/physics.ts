@@ -78,10 +78,9 @@ export function stepBall(b: Ball, layout: Layout, dt: number, out: ContactEvent[
     const s = resolveCircle(b, w.x, w.y, w.r, REST_PIN);
     if (s > 0) {
       const nx = (b.x - w.x), ny = (b.y - w.y), n = Math.hypot(nx, ny) || 1;
-      // tangent, clockwise; side chosen by which half the ball hit so it flings outward
-      const sign = b.x < w.x ? -1 : 1;
-      b.vx += sign * (-ny / n) * WINDMILL_KICK;
-      b.vy += sign * (nx / n) * WINDMILL_KICK;
+      // tangential kick in the windmill's spin sense (w.dir), whichever side the ball hit
+      b.vx += w.dir * (-ny / n) * WINDMILL_KICK;
+      b.vy += w.dir * (nx / n) * WINDMILL_KICK;
       out.push({ type: 'windmill', index: i, speed: s, x: b.x, y: b.y });
     }
   }

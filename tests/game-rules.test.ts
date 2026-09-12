@@ -170,3 +170,24 @@ describe('save', () => {
     expect(g.save()).toEqual({ bank: 42, bestSession: 300, biggestJackpot: 90 });
   });
 });
+
+describe('snapshot', () => {
+  it('does not alias live state: a held snapshot is unchanged by later steps', () => {
+    const g = new Game(MACHINES.raijin, 3);
+    g.fireAt(0.6); g.fireAt(0.4); steps(g, 0.5);
+    dropInto(g, 320, 700); steps(g, 0.05);                        // start catch → reach running
+    const t = MACHINES.raijin.layout.catchers.find(c => c.id === 'tulip-l')!;
+    dropInto(g, t.x, t.y); steps(g, 0.05);                        // tulip-l toggled open
+    const s = g.snapshot();
+    const copy = JSON.parse(JSON.stringify(s));
+    expect(s.balls.length).toBeGreaterThan(0); expect(s.reach).not.toBeNull(); expect(s.tulipOpen['tulip-l']).toBe(true);
+    for (let i = 0; i < 10; i++) g.step();
+    expect(s).toEqual(copy);
+    const after = g.snapshot();
+    expect(after.balls[0]!.y).not.toBe(s.balls[0]!.y);            // the game itself moved on
+    expect(after.reach!.t).toBeGreaterThan(s.reach!.t);
+    // mutating the snapshot does not touch the game
+    (s.balls[0] as Ball).x = -1; (s.windmillSpin as number[])[0] = 99; (s.tulipOpen as Record<string, boolean>)['tulip-l'] = false;
+    expect(g.snapshot().balls[0]!.x).not.toBe(-1); expect(g.snapshot().windmillSpin[0]).not.toBe(99); expect(g.snapshot().tulipOpen['tulip-l']).toBe(true);
+  });
+});

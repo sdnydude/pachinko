@@ -39,12 +39,14 @@ describe('stepBall', () => {
     expect(e && e.type === 'pin' ? e.index : -1).toBe(0);
     expect(b.vy).toBeLessThan(0);
   });
-  it('deflects tangentially off a windmill', () => {
-    const L = emptyLayout(); L.windmills = [{ x: 300, y: 330, r: 10 }];
-    const b = ball({ y: 316, vy: 200 }); const ev: ContactEvent[] = [];
-    stepBall(b, L, DT, ev);
-    expect(ev.some(e => e.type === 'windmill')).toBe(true);
-    expect(Math.abs(b.vx)).toBeGreaterThan(0); // got a sideways kick
+  it('deflects tangentially off a windmill, kick direction following its dir', () => {
+    for (const dir of [1, -1] as const) {
+      const L = emptyLayout(); L.windmills = [{ x: 300, y: 330, r: 10, dir }];
+      const b = ball({ y: 316, vy: 200 }); const ev: ContactEvent[] = []; // falls onto the top of the windmill
+      stepBall(b, L, DT, ev);
+      expect(ev.some(e => e.type === 'windmill')).toBe(true);
+      expect(Math.sign(b.vx)).toBe(dir); // got a sideways kick in the windmill's sense, not the side it hit
+    }
   });
   it('applies drag', () => {
     const b = ball({ vx: 100 }); stepBall(b, emptyLayout(), DT, []);

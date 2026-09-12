@@ -6,7 +6,8 @@ export const FIELD_LEFT = 40;
 export const CATCH_ROW_Y = 700;
 
 export interface Pin { x: number; y: number; r: number }
-export interface Windmill { x: number; y: number; r: number }
+/** `dir` is the spin sense: the tangential kick on contact and the drawn spin both follow it (1 = clockwise on screen, -1 = counter-clockwise). */
+export interface Windmill { x: number; y: number; r: number; dir: 1 | -1 }
 export type CatcherKind = 'win' | 'start' | 'out' | 'attacker';
 export interface Catcher {
   id: string; kind: CatcherKind; x: number; y: number; halfWidth: number; payout: number;

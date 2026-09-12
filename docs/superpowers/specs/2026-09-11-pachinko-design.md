@@ -220,7 +220,9 @@ Tests that gate "done":
   within 30 s sim time; no NaN; no ball out of bounds; balls in flight
   never exceed 15.
 - Balance: from the soak, return rate per machine per strength printed as
-  a table; outside jackpot must land in 85–95 %.
+  a table; outside jackpot must land in 85–95 %. The guard takes the mean of
+  two seeds per strength, requires the best of 0.4–0.8 to sit at least 1.5
+  points inside the band, and caps every strength 0.2–1.0 at 100 %.
 - Playwright smoke: each machine at phone/tablet/desktop, one screenshot
   each, no console errors.
 
