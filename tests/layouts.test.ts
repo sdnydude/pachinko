@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { MACHINES, MACHINE_ORDER } from '../src/core/machine';
-import { BOARD_W, BOARD_H, FIELD_LEFT, inRect, near } from '../src/core/board';
+import { BOARD_W, BOARD_H, FIELD_LEFT, PIN_R, inRect, near, type Segment } from '../src/core/board';
+
+const distToSegment = (x: number, y: number, s: Segment) => {
+  const ex = s.bx - s.ax, ey = s.by - s.ay; const t = Math.min(1, Math.max(0, ((x - s.ax) * ex + (y - s.ay) * ey) / (ex * ex + ey * ey)));
+  return Math.hypot(x - (s.ax + t * ex), y - (s.ay + t * ey));
+};
 
 describe('machine layouts', () => {
   for (const id of MACHINE_ORDER) {
@@ -15,6 +20,14 @@ describe('machine layouts', () => {
       }
       const pinKeys = new Set(m.layout.pins.map(p => `${p.x},${p.y}`));
       expect(pinKeys.size).toBe(m.layout.pins.length);
+    });
+    it(`${id}: solids exclude every pin`, () => {
+      const { circles, segments } = m.layout.solids;
+      expect(segments.length).toBeGreaterThanOrEqual(5); // at least one roof-peaked bezel outline
+      for (const p of m.layout.pins) {
+        for (const c of circles) expect(Math.hypot(p.x - c.x, p.y - c.y)).toBeGreaterThan(c.r);
+        for (const s of segments) expect(distToSegment(p.x, p.y, s)).toBeGreaterThan(PIN_R);
+      }
     });
     it(`${id}: has one start catcher on the bottom row, out pockets, and an attacker`, () => {
       const starts = m.layout.catchers.filter(c => c.kind === 'start' && c.y === 700);

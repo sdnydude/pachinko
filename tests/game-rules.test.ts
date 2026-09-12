@@ -35,13 +35,15 @@ describe('catchers and payouts', () => {
 });
 
 describe('tulip mechanics', () => {
-  it('closed tulip catches within 6, then opens and catches within 14', () => {
+  it('closed tulip catches within its closed width, then opens and catches within its open width', () => {
     const g = new Game(MACHINES.raijin, 1);
-    dropInto(g, 110 + 5, 400);
+    const t = MACHINES.raijin.layout.catchers.find(c => c.id === 'tulip-l')!.tulip!;
+    expect(t.openHalfWidth).toBeGreaterThan(t.closedHalfWidth + 2);
+    dropInto(g, 110 + t.closedHalfWidth - 1, 400);
     let ev = steps(g, 0.05);
     expect(types(ev)).toContain('tulip');
     expect(g.snapshot().tulipOpen['tulip-l']).toBe(true);
-    dropInto(g, 110 + 12, 400);
+    dropInto(g, 110 + t.openHalfWidth - 1, 400);
     ev = steps(g, 0.05);
     expect(ev.filter(e => e.type === 'catch').length).toBe(1);
     expect(g.snapshot().tulipOpen['tulip-l']).toBe(false);
@@ -128,6 +130,37 @@ describe('jackpot', () => {
     dropInto(g, 320, 372);
     const ev = steps(g, 0.05);
     expect(types(ev)).toContain('reachStart');
+  });
+});
+
+describe('free balls', () => {
+  const dropFree = (g: Game, x: number, y: number) => {
+    const b: Ball = { id: 999, x, y: y - 3, px: x, py: y - 3, vx: 0, vy: 400, age: 0, free: true };
+    (g as unknown as { balls: Ball[] }).balls.push(b);
+  };
+  it('trigger catch, tulip, reach and attacker events but never pay or count toward the jackpot', () => {
+    const g = new Game(MACHINES.raijin, 1, undefined, { rng: scripted([0.01, 0.7, ...Array(50).fill(0.9)]) });
+    for (let i = 0; i < 7; i++) dropFree(g, 160, 700);   // win pocket
+    for (let i = 0; i < 3; i++) dropFree(g, 110, 400);   // tulip: closed → open → closed → open
+    for (let i = 0; i < 5; i++) dropFree(g, 320, 700);   // start: one reach (a win) + 4 queued
+    let ev = steps(g, 0.05);
+    expect(ev.filter(e => e.type === 'catch').length).toBe(15);
+    expect(ev.filter(e => e.type === 'catch' && e.payout === 5).length).toBe(10);
+    expect(ev.filter(e => e.type === 'tulip').length).toBe(3);
+    expect(g.snapshot().tulipOpen['tulip-l']).toBe(true);
+    expect(types(ev)).toContain('reachStart'); expect(g.snapshot().reachQueue).toBe(REACH_QUEUE_MAX);
+    ev = steps(g, 2.8 + REEL_TENSION + 0.02);
+    expect(types(ev)).toContain('jackpotOpen'); expect(g.snapshot().phase).toBe('jackpot');
+    for (let i = 0; i < 5; i++) { dropFree(g, 320, 610); ev = steps(g, 0.05); expect(ev.filter(e => e.type === 'attackerCatch' && e.payout === 15).length).toBe(1); }
+    expect(g.snapshot().jackpot).toEqual({ t: expect.any(Number), caught: 0, total: 0 });
+    expect(g.snapshot().balls.length).toBe(0);
+    const s = g.snapshot();
+    expect([s.bank, s.sessionWon, s.bestSession, s.biggestJackpot]).toEqual([100, 0, 0, 0]);
+  });
+  it('fireAt(strength, true) marks the ball free', () => {
+    const g = new Game(MACHINES.raijin, 1);
+    g.fireAt(0.5, true); g.fireAt(0.5);
+    expect(g.snapshot().balls.map(b => b.free)).toEqual([true, undefined]);
   });
 });
 

@@ -18,6 +18,10 @@ export type Phase = 'idle' | 'playing' | 'reach' | 'jackpot';
 export interface ReachState { t: number; digits: [number, number, number]; win: boolean; tension: boolean; stopAt: [number, number, number]; stopped: [boolean, boolean, boolean] }
 export interface JackpotState { t: number; caught: number; total: number }
 export interface GameSave { bank: number; bestSession: number; biggestJackpot: number }
+/**
+ * Same-frame read view of the game. `balls`, `tulipOpen`, `windmillSpin`, `reach` and `jackpot` are live references
+ * into Game state (not copies): read them during the frame you took the snapshot, do not retain or mutate them.
+ */
 export interface Snapshot {
   phase: Phase; bank: number; sessionWon: number; bestSession: number; biggestJackpot: number; seed: number; time: number;
   balls: readonly Ball[]; tulipOpen: Readonly<Record<string, boolean>>; windmillSpin: readonly number[];
@@ -54,9 +58,10 @@ export class Game {
   private windmillSpin: number[];
   private held = false;
   private strength = 0;
-  private trimmed = false;
+  private holdTime = 0;
   private fireTimer = 0;
   private holdFired = 0;
+  private pendingShot: number | null = null; // release at the ball cap: fire as soon as a slot frees
   private reach: ReachState | null = null;
   private reachQueue = 0;
   private jackpot: JackpotState | null = null;
@@ -73,15 +78,23 @@ export class Game {
   }
 
   // ---- input ----
+  /**
+   * Hold: strength ramps 0→1 over RAMP_SECONDS (trims add to it along the way), then auto-fires every AUTOFIRE_SECONDS
+   * (first shot as soon as the ramp time elapses). Release fires once if no auto-fire happened; at the ball cap the
+   * shot waits for a free slot.
+   */
   setHeld(held: boolean): void {
     if (held === this.held) return;
     this.held = held;
-    if (held) { this.strength = 0; this.trimmed = false; this.fireTimer = AUTOFIRE_SECONDS; this.holdFired = 0; }
-    else if (this.holdFired === 0) { this.fireAt(this.strength); }
+    if (held) { this.strength = 0; this.holdTime = 0; this.fireTimer = AUTOFIRE_SECONDS; this.holdFired = 0; }
+    else if (this.holdFired === 0) {
+      if (this.balls.length >= MAX_BALLS) this.pendingShot = this.strength;
+      else this.fireAt(this.strength);
+    }
   }
+  /** Nudge strength by `delta` (clamped 0.05..1). Does not stop the ramp; after the ramp the trimmed value persists. */
   trim(delta: number): void {
     this.strength = Math.min(1, Math.max(0.05, this.strength + delta));
-    this.trimmed = true;
   }
   buyIn(): void { this.bank += START_BANK; this.buyIns++; if (this.phase === 'idle') this.phase = 'playing'; }
 
@@ -91,7 +104,7 @@ export class Game {
     if (!free) { if (this.bank <= 0) return false; this.bank--; }
     const j = 1 + this.rng.range(-0.02, 0.02);
     const { x, y } = this.machine.layout.launch;
-    this.balls.push({ id: this.nextBallId++, x, y, px: x, py: y, vx: (120 + strength * 520) * j, vy: -(60 + strength * 80) * j, age: 0 });
+    this.balls.push({ id: this.nextBallId++, x, y, px: x, py: y, vx: (120 + strength * 520) * j, vy: -(60 + strength * 80) * j, age: 0, ...(free ? { free: true as const } : {}) });
     this.pending.push({ type: 'launch', strength });
     return true;
   }
@@ -116,13 +129,16 @@ export class Game {
   }
 
   private stepDial(ev: GameEvent[]): void {
+    if (this.pendingShot !== null && this.balls.length < MAX_BALLS) {
+      this.fireAt(this.pendingShot); this.pendingShot = null; ev.push(...this.pending); this.pending = [];
+    }
     if (!this.held) return;
-    if (!this.trimmed && this.strength < 1) this.strength = Math.min(1, this.strength + DT / RAMP_SECONDS);
-    if (this.strength >= 1 || this.trimmed) {
-      this.fireTimer += DT;
-      if (this.fireTimer >= AUTOFIRE_SECONDS - 1e-9) {
-        if (this.fireAt(this.strength)) { this.holdFired++; this.fireTimer = 0; ev.push(...this.pending); this.pending = []; }
-      }
+    this.holdTime += DT;
+    if (this.holdTime <= RAMP_SECONDS + 1e-9) this.strength = Math.min(1, this.strength + DT / RAMP_SECONDS);
+    if (this.holdTime < RAMP_SECONDS - 1e-9) return;
+    this.fireTimer += DT;
+    if (this.fireTimer >= AUTOFIRE_SECONDS - 1e-9) {
+      if (this.fireAt(this.strength)) { this.holdFired++; this.fireTimer = 0; ev.push(...this.pending); this.pending = []; }
     }
   }
 
@@ -144,16 +160,17 @@ export class Game {
 
   private tryCatch(b: Ball, ev: GameEvent[]): boolean {
     const L = this.machine.layout;
+    // free balls (attract mode) trigger everything but pay nothing and do not count toward the jackpot
     if (this.phase === 'jackpot' && this.jackpot && catcherHit(b, L.attacker, L.attacker.halfWidth)) {
       const pay = this.machine.tuning.attackerPayout;
-      this.jackpot.caught++; this.jackpot.total += pay; this.award(pay);
+      if (!b.free) { this.jackpot.caught++; this.jackpot.total += pay; this.award(pay); }
       ev.push({ type: 'attackerCatch', payout: pay, caught: this.jackpot.caught, x: b.x, y: b.y });
       return true;
     }
     for (const c of L.catchers) {
       const hw = c.tulip ? (this.tulipOpen[c.id] ? c.tulip.openHalfWidth : c.tulip.closedHalfWidth) : c.halfWidth;
       if (!catcherHit(b, c, hw)) continue;
-      this.award(c.payout);
+      if (!b.free) this.award(c.payout);
       ev.push({ type: 'catch', catcherId: c.id, kind: c.kind, payout: c.payout, x: b.x, y: b.y });
       if (c.tulip) { this.tulipOpen[c.id] = !this.tulipOpen[c.id]; ev.push({ type: 'tulip', catcherId: c.id, open: this.tulipOpen[c.id]! }); }
       if (c.kind === 'start') this.queueReach(ev);

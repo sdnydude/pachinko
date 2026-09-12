@@ -13,9 +13,12 @@ export interface Catcher {
   tulip?: { openHalfWidth: number; closedHalfWidth: number };
 }
 export interface Rect { x: number; y: number; w: number; h: number }
+export interface Segment { ax: number; ay: number; bx: number; by: number }
+/** Solid gadget geometry (cel art the ball bounces off): circles and thin wall segments. */
+export interface Solids { circles: { x: number; y: number; r: number }[]; segments: Segment[] }
 export interface Layout {
   pins: Pin[]; windmills: Windmill[]; catchers: Catcher[]; attacker: Catcher;
-  reelRect: Rect; launch: { x: number; y: number };
+  reelRect: Rect; launch: { x: number; y: number }; solids: Solids;
 }
 export interface GridSpec { x0: number; dx: number; cols: number; y0: number; dy: number; rows: number }
 
@@ -43,4 +46,13 @@ export function near(x: number, y: number, pts: { x: number; y: number }[], d: n
 
 export function inRect(x: number, y: number, r: Rect): boolean {
   return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+}
+
+/** Closed outline of a rect whose top edge is a shallow roof (peak `peak` px above the top) so balls roll off. */
+export function roofRect(r: Rect, peak: number): Segment[] {
+  const l = r.x, t = r.y, rt = r.x + r.w, bt = r.y + r.h, mx = r.x + r.w / 2;
+  return [
+    { ax: l, ay: t, bx: mx, by: t - peak }, { ax: mx, ay: t - peak, bx: rt, by: t },
+    { ax: rt, ay: t, bx: rt, by: bt }, { ax: rt, ay: bt, bx: l, by: bt }, { ax: l, ay: bt, bx: l, by: t },
+  ];
 }

@@ -32,13 +32,40 @@ describe('dial and launch', () => {
     g.setHeld(false);
     expect(launches(g.step())).toBe(0);
   });
-  it('trim fixes strength and starts auto-fire', () => {
+  it('trim adds to the ramping strength; auto-fire still waits for the ramp time', () => {
     const g = new Game(MACHINES.raijin, 1);
     g.setHeld(true); g.trim(0.3);
-    const ev = steps(g, 0.01);
     expect(g.snapshot().dial.strength).toBeCloseTo(0.3);
+    let ev = steps(g, 0.6);
+    expect(launches(ev)).toBe(0);
+    expect(g.snapshot().dial.strength).toBeCloseTo(0.8, 5); // 0.3 trim + 0.5 ramp
+    ev = steps(g, 0.59);                                     // t ≈ 1.19 s: still before the ramp time
+    expect(launches(ev)).toBe(0);
+    ev = steps(g, 0.02);                                     // t ≈ 1.21 s: first auto-fire, ramp clamped at 1
     expect(launches(ev)).toBe(1);
-    steps(g, 0.5); expect(g.snapshot().dial.strength).toBeCloseTo(0.3); // no ramp after trim
+    expect(g.snapshot().dial.strength).toBe(1);
+  });
+  it('trim after the ramp sets the strength and it stays; auto-fire uses it', () => {
+    const g = new Game(MACHINES.raijin, 1);
+    g.setHeld(true); steps(g, 1.5);
+    g.trim(-0.5);
+    expect(g.snapshot().dial.strength).toBeCloseTo(0.5);
+    const ev = steps(g, 0.5);
+    expect(g.snapshot().dial.strength).toBeCloseTo(0.5);
+    const l = ev.find(e => e.type === 'launch');
+    expect(l && l.type === 'launch' ? l.strength : -1).toBeCloseTo(0.5);
+  });
+  it('release at the ball cap waits and fires exactly once when a slot frees', () => {
+    const g = new Game(MACHINES.raijin, 1);
+    for (let i = 0; i < MAX_BALLS; i++) g.fireAt(0.8, true);
+    g.setHeld(true); steps(g, 0.3); g.setHeld(false);
+    expect(launches(steps(g, 0.05))).toBe(0);
+    expect(g.snapshot().balls.length).toBe(MAX_BALLS); expect(g.snapshot().bank).toBe(START_BANK);
+    let n = 0;
+    for (let i = 0; i < 30 * 120 && n === 0; i++) n += launches(g.step());
+    expect(n).toBe(1);
+    expect(g.snapshot().bank).toBe(START_BANK - 1);
+    expect(launches(steps(g, 2))).toBe(0); // the pending shot fires once, not per freed slot
   });
   it('trim clamps to [0.05, 1]', () => {
     const g = new Game(MACHINES.raijin, 1);

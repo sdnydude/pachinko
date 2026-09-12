@@ -1,4 +1,4 @@
-import { CATCH_ROW_Y, pinGrid, tulipPins, near, inRect, type Catcher, type Layout, type Pin, type Rect, type Windmill } from '../board';
+import { CATCH_ROW_Y, pinGrid, tulipPins, near, inRect, type Catcher, type Layout, type Pin, type Rect, type Solids, type Windmill } from '../board';
 
 export const GRID = { x0: 80, dx: 40, cols: 13, y0: 110, dy: 36, rows: 14 };
 
@@ -20,16 +20,20 @@ export function attacker(x: number, payout: number): Catcher {
   return { id: 'attacker', kind: 'attacker', x, y: 610, halfWidth: 70, payout };
 }
 
-export interface BuildOpts { skipRects: Rect[]; windmills: Windmill[]; catchers: Catcher[]; attacker: Catcher; reelRect: Rect }
+export interface BuildOpts { skipRects: Rect[]; windmills: Windmill[]; catchers: Catcher[]; attacker: Catcher; reelRect: Rect; solids?: Solids }
 
 export function buildLayout(o: BuildOpts): Layout {
   const tulips = o.catchers.filter(c => c.tulip);
   const skip = (x: number, y: number) =>
     o.skipRects.some(r => inRect(x, y, r)) ||
+    inRect(x, y, o.reelRect) ||
     near(x, y, o.windmills, 26) ||
     near(x, y, tulips, 36) ||
     near(x, y, [o.attacker], 90) ||
     y > 600; // bottom funnel is open
   const pins: Pin[] = [...pinGrid(GRID, skip), ...tulips.flatMap(tulipPins)];
-  return { pins, windmills: o.windmills, catchers: o.catchers, attacker: o.attacker, reelRect: o.reelRect, launch: { x: 70, y: 50 } };
+  return {
+    pins, windmills: o.windmills, catchers: o.catchers, attacker: o.attacker, reelRect: o.reelRect, launch: { x: 70, y: 50 },
+    solids: o.solids ?? { circles: [], segments: [] },
+  };
 }
