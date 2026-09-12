@@ -2,17 +2,30 @@ import type { GameEvent } from '../core/game';
 import type { SoundSet } from './sets';
 
 const MAX_PER_SECOND = 12;
+const TICK_MS = 100, TICK_TOTAL_MS = 1000;
 export class Synth {
   muted = false;
   private ctx: AudioContext | null = null;
   private stamps: number[] = [];
   private loop: { timer: number; i: number } | null = null;
+  private ticks = 0;   // interval id for the third-reel tension ticks
   constructor(private set: SoundSet) {}
-  setSet(set: SoundSet) { this.set = set; this.stopLoop(); }
+  setSet(set: SoundSet) { this.set = set; this.stopLoop(); this.stopTicks(); }
   setMuted(m: boolean) { this.muted = m; if (m) this.stopLoop(); }
   /** Call from a user gesture once so the AudioContext can start. */
   resume() { if (!this.ctx) this.ctx = new AudioContext(); if (this.ctx.state === 'suspended') void this.ctx.resume(); }
-  dispose(): void { this.stopLoop(); if (this.ctx) { void this.ctx.close(); this.ctx = null; } }
+  dispose(): void { this.stopLoop(); this.stopTicks(); if (this.ctx) { void this.ctx.close(); this.ctx = null; } }
+
+  /** Third reel "ticks" through the tension second: a soft tick every TICK_MS for TICK_TOTAL_MS. */
+  private startTicks() {
+    this.stopTicks();
+    let n = 0;
+    this.ticks = window.setInterval(() => {
+      if (++n > TICK_TOTAL_MS / TICK_MS) { this.stopTicks(); return; }
+      const T = this.set.tick; if (this.allow()) this.beep(T.freq, T.type, T.ms, 0.03);
+    }, TICK_MS);
+  }
+  private stopTicks() { if (this.ticks) { clearInterval(this.ticks); this.ticks = 0; } }
 
   private allow(): boolean {
     if (this.muted || !this.ctx) return false;
@@ -44,8 +57,11 @@ export class Synth {
         case 'tulip': if (this.allow()) this.beep(S.clack.freq, S.clack.type, S.clack.ms, 0.06); break;
         case 'catch': if (e.payout > 0 && this.allow()) this.arp(S.chime, 70); break;
         case 'reachStart': if (this.allow()) this.arp(S.reachChime, 110); break;
-        case 'reelStop': if (this.allow()) this.beep(S.tick.freq, S.tick.type, S.tick.ms, 0.06); break;
-        case 'jackpotOpen': if (this.allow()) { this.arp([...S.reachChime, S.reachChime[S.reachChime.length - 1]! * 2], 80); this.startLoop(); } break;
+        case 'reelStop':
+          if (this.allow()) this.beep(S.tick.freq, S.tick.type, S.tick.ms, 0.06);
+          if (e.reel === 1 && e.tension) this.startTicks(); else if (e.reel === 2) this.stopTicks();
+          break;
+        case 'jackpotOpen': this.stopTicks(); if (this.allow()) { this.arp([...S.reachChime, S.reachChime[S.reachChime.length - 1]! * 2], 80); this.startLoop(); } break;
         case 'attackerCatch': if (this.allow()) this.arp(S.chime, 50, 'square'); break;
         case 'jackpotClose': this.stopLoop(); if (this.allow()) this.arp(S.close, 120); break;
       }

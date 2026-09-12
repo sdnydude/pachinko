@@ -1,8 +1,8 @@
-import { Game, type GameEvent } from './core/game';
+import { Game } from './core/game';
 import { MACHINES, MACHINE_ORDER, type MachineId } from './core/machine';
 import { Renderer } from './render/canvas';
 import { THEMES } from './render/themes/index';
-import { Dial } from './input/dial';
+import { Dial, ignoreKey } from './input/dial';
 import { EMPTY_SAVE, type SaveData, type Storage } from './storage/types';
 import { BOARD_W, BOARD_H } from './core/board';
 import { Effects } from './render/effects';
@@ -38,9 +38,7 @@ export class App {
   private overlay: HTMLElement | null = null;
   private debugEl: HTMLElement | null = null; private debugOn = false;
   private fps = 0; private fpsAcc = 0; private fpsN = 0;
-  /** Subscribers get every game event each frame (effects, audio, panel). */
-  readonly listeners: Array<(ev: GameEvent[], g: Game) => void> = [];
-  readonly frameHooks: Array<(dt: number) => void> = [];
+  private reducedMq = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   constructor(private o: AppOptions) {
     this.machineId = o.machine ?? 'raijin';
@@ -57,10 +55,11 @@ export class App {
     this.save = (await this.o.storage.load()) ?? structuredClone(EMPTY_SAVE);
     if (this.stopped) return;
     this.panel = new Panel(this.shellEl, {
-      onSwitch: id => void this.switchMachine(id),
+      onSwitch: id => this.requestSwitch(id),
+      onSwipe: dir => { const n = MACHINE_ORDER.length; this.requestSwitch(MACHINE_ORDER[(MACHINE_ORDER.indexOf(this.machineId) + dir + n) % n]!); },
       onMute: m => { this.synth.setMuted(m); this.setSaveField('mute', m); },
       onBuyIn: () => { this.game.buyIn(); this.closeOverlay(); },
-      onReset: () => { this.save.perMachine[this.machineId] = undefined; void this.switchMachine(this.machineId); },
+      onReset: () => { this.save.perMachine[this.machineId] = undefined; void this.switchMachine(this.machineId, { reset: true }); this.scheduleSave(); },
     });
     await this.switchMachine(this.machineId);
     if (this.stopped) return;
@@ -73,6 +72,7 @@ export class App {
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.flushSave);
     window.addEventListener('keydown', this.keys);
+    this.reducedMq.addEventListener('change', this.onReducedMotion);
     if (!this.save.firstRunDone) this.showFirstRun();
     this.running = true; this.last = performance.now(); this.raf = requestAnimationFrame(this.frame);
   }
@@ -84,17 +84,23 @@ export class App {
     this.ro?.disconnect(); this.ro = null;
     document.removeEventListener('visibilitychange', this.onVisibility); window.removeEventListener('pagehide', this.flushSave);
     window.removeEventListener('keydown', this.keys);
+    this.reducedMq.removeEventListener('change', this.onReducedMotion);
     if (this.game) this.flushSave();
   }
 
-  async switchMachine(id: MachineId): Promise<void> {
-    if (this.game) this.persistGame();
+  /** Tabs, number keys and swipes all come through here; switching is ignored while the attacker is open. */
+  private requestSwitch(id: MachineId): void {
+    if (this.game.snapshot().phase === 'jackpot') return;
+    void this.switchMachine(id);
+  }
+
+  async switchMachine(id: MachineId, opts?: { reset?: boolean }): Promise<void> {
+    if (this.game && !opts?.reset) this.persistGame();
     this.machineId = id;
     const m = MACHINES[id];
     this.game = new Game(m, this.seed ^ MACHINE_ORDER.indexOf(id), this.save.perMachine[id]);
     this.renderer = new Renderer(this.canvas, m, THEMES[id]);
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.effects = new Effects(THEMES[id], m.layout, { reducedMotion: reduced });
+    this.effects = new Effects(THEMES[id], m.layout, { reducedMotion: this.reducedMq.matches });
     this.panel?.setTheme(THEMES[id], id); ensureFonts(THEMES[id]);
     this.synth.setSet(SOUND_SETS[id]);
     this.o.root.dataset.machine = id;
@@ -112,47 +118,47 @@ export class App {
     if (!this.running) return;
     const dt = Math.min(0.1, (now - this.last) / 1000); this.last = now;
     const ev = this.game.tick(dt);
-    for (const l of this.listeners) l(ev, this.game);
-    for (const h of this.frameHooks) h(dt);
-    this.effects.onEvents(ev, this.game.snapshot()); this.effects.update(dt); this.synth.onEvents(ev);
-    this.renderer.draw(this.game.snapshot(), this.effects);
-    this.panel.update(this.game.snapshot(), this.effects.lampPhase, this.effects.lampSpeed, this.synth.muted);
+    const s = this.game.snapshot();
+    this.effects.onEvents(ev, s); this.effects.update(dt); this.synth.onEvents(ev);
+    this.renderer.draw(s, this.effects);
+    this.panel.update(s, this.effects.lampPhase, this.effects.lampSpeed, this.synth.muted);
     this.idleFor += dt;
-    if (!this.attract && this.idleFor > 20 && this.game.snapshot().phase !== 'idle') this.startAttract();
-    if (this.attract && this.game.snapshot().phase !== 'idle' && Math.random() < dt * 1.6) this.game.fireAt(0.35 + Math.random() * 0.6, true);
-    if (this.game.snapshot().needsBuyIn && !this.overlay) this.showBuyIn();
+    if (!this.attract && this.idleFor > 20 && s.phase !== 'idle') this.startAttract();
+    if (this.attract && s.phase !== 'idle' && Math.random() < dt * 1.6) this.game.fireAt(0.35 + Math.random() * 0.6, true);
+    if (s.needsBuyIn && !this.overlay) this.showBuyIn(s.buyIns, s.sessionWon);
     if (ev.some(e => e.type === 'launch') && !this.attract && this.overlay?.classList.contains('first-run')) { this.closeOverlay(); this.setSaveField('firstRunDone', true); }
-    if (this.debugOn) this.drawDebug(dt);
+    if (this.debugOn) this.drawDebug(dt, s.balls.length, s.phase);
     if (ev.some(e => e.type === 'catch' || e.type === 'launch' || e.type === 'attackerCatch' || e.type === 'jackpotClose')) this.scheduleSave();
     this.raf = requestAnimationFrame(this.frame);
   };
 
   private keys = (e: KeyboardEvent) => {
+    if (ignoreKey(e)) return;
     const idx = Number(e.key) - 1;
-    if (Number.isInteger(idx) && MACHINE_ORDER[idx]) void this.switchMachine(MACHINE_ORDER[idx]);
+    if (Number.isInteger(idx) && MACHINE_ORDER[idx]) this.requestSwitch(MACHINE_ORDER[idx]);
     if (e.code === 'KeyM') { const m = !this.synth.muted; this.synth.setMuted(m); this.setSaveField('mute', m); }
     if (e.code === 'Backquote') { this.debugOn = !this.debugOn; this.debugEl?.remove(); this.debugEl = null; }
     this.activity();
   };
+  private onReducedMotion = () => { this.effects.reduced = this.reducedMq.matches; };
 
   private activity(): void { this.idleFor = 0; this.synth.resume(); if (this.attract) { this.attract = false; if (this.overlay?.classList.contains('first-run') && this.save.firstRunDone) this.closeOverlay(); } }
   private startAttract(): void { if (this.overlay?.classList.contains('buy-in')) return; this.attract = true; if (!this.overlay) this.showFirstRun(); }
   private showFirstRun(): void {
     this.openOverlay('first-run', `<h2>${THEMES[this.machineId].name}</h2><p>Hold to shoot.<br>Drag up or down to aim.<br>Land the center pocket.</p>`);
   }
-  private showBuyIn(): void {
+  private showBuyIn(buyIns: number, sessionWon: number): void {
     this.attract = false;
     const T = THEMES[this.machineId];
-    this.openOverlay('buy-in', `<h2>Out of balls</h2><p>Session ${this.game.snapshot().buyIns + 1} · Won ${this.game.snapshot().sessionWon}</p><button data-a="buyin">${T.copy.buyIn}</button>`);
+    this.openOverlay('buy-in', `<h2>Out of balls</h2><p>Session ${buyIns + 1} · Won ${sessionWon}</p><button data-a="buyin">${T.copy.buyIn}</button>`);
     this.overlay!.querySelector<HTMLButtonElement>('[data-a=buyin]')!.onclick = () => { this.game.buyIn(); this.closeOverlay(); this.activity(); };
   }
   private openOverlay(kind: string, html: string): void { this.closeOverlay(); const d = document.createElement('div'); d.className = `pk-overlay ${kind}`; d.innerHTML = `<div class="card">${html}</div>`; this.shellEl.appendChild(d); this.overlay = d; }
   private closeOverlay(): void { this.overlay?.remove(); this.overlay = null; }
-  private drawDebug(dt: number): void {
+  private drawDebug(dt: number, balls: number, phase: string): void {
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc >= 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
     if (!this.debugEl) { this.debugEl = document.createElement('div'); this.debugEl.className = 'pk-debug'; this.shellEl.appendChild(this.debugEl); this.debugEl.onclick = () => void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?seed=${this.seed}&m=${this.machineId}`).catch(() => {}); }
-    const s = this.game.snapshot();
-    this.debugEl.textContent = `fps ${this.fps}\nballs ${s.balls.length}\nphase ${s.phase}\nparticles ${this.effects.particleCount}\nseed ${this.seed} (click to copy link)`;
+    this.debugEl.textContent = `fps ${this.fps}\nballs ${balls}\nphase ${phase}\nparticles ${this.effects.particleCount}\nseed ${this.seed} (click to copy link)`;
   }
 
   private onVisibility = () => {

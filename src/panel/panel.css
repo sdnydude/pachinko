@@ -4,14 +4,21 @@
 .pk-marquee .lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 6px 5px 0; opacity: .25; background: var(--lamp, var(--pk-accent)); }
 .pk-marquee .lamp.on { opacity: 1; box-shadow: 0 0 6px var(--lamp, var(--pk-accent)); }
 @media (prefers-reduced-motion: reduce) { .pk-marquee .lamp { transition: none; } }
-.pk-board { position: relative; display: grid; place-items: center; background: var(--pk-wall, #000); min-height: 0; }
+/* gutters: theme wall color under a faint 45° parlor-wall stripe in the accent */
+.pk-board { position: relative; display: grid; place-items: center; min-height: 0; background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--pk-accent, #fff) 6%, transparent) 0 3px, transparent 3px 14px), var(--pk-wall, #000); }
 .pk-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px; background: var(--pk-panel-bg); border-left: 2px solid var(--pk-accent); overflow: hidden; }
 .pk-strip { display: contents; }
-.pk-tabs { display: flex; gap: 6px; }
-.pk-tabs button { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--pk-accent); background: transparent; color: var(--pk-panel-fg); border-radius: 6px; font: 700 11px var(--pk-body); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
-.pk-tabs button[aria-pressed="true"] { background: var(--pk-accent); color: #000; }
-.pk-reels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: #000; border: 2px solid var(--pk-accent); border-radius: 6px; padding: 6px; font: 700 34px var(--pk-display); text-align: center; color: var(--pk-panel-fg); }
+.pk-tabs { display: flex; gap: 6px; touch-action: pan-y; }
+.pk-tabs button { flex: 1; min-width: 0; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--pk-accent); background: transparent; color: var(--pk-panel-fg); border-radius: 6px; font: 700 11px var(--pk-body); cursor: pointer; padding: 0 4px; }
+.pk-tabs button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-tabs .cab { flex: none; }
+.pk-tabs button[aria-selected="true"] { background: var(--pk-accent); color: #000; }
+.pk-tabs button[aria-disabled="true"] { opacity: .45; cursor: default; }
+.pk-strip { touch-action: pan-y; }
+.pk-reels { --reel-size: 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: #000; border: 2px solid var(--pk-accent); border-radius: 6px; padding: 6px; font: 700 var(--reel-size) var(--pk-display); text-align: center; color: var(--pk-panel-fg); transition: font-size 150ms; }
+.pk-reels.reach { font-size: calc(var(--reel-size) * 1.3); }
 .pk-reels .reel.spin { opacity: .5; } .pk-reels .reel.hit { color: var(--pk-accent); }
+@media (prefers-reduced-motion: reduce) { .pk-reels { transition: none; } }
 .pk-num { font-variant-numeric: tabular-nums; font: 700 28px var(--pk-body); }
 .pk-label { font: 600 10px var(--pk-body); letter-spacing: .15em; text-transform: uppercase; opacity: .7; }
 .pk-status { min-height: 48px; font: 600 12px var(--pk-body); line-height: 1.4; }
@@ -36,7 +43,8 @@
   .pk-marquee { display: block; grid-area: marquee; }
   .pk-board { grid-area: board; }
   .pk-panel { grid-area: panel; grid-auto-rows: max-content; align-content: start; }
-  .pk-tabs { flex-direction: column; } .pk-tabs button { height: 24px; }
+  .pk-tabs { flex-direction: column; } .pk-tabs button { height: 28px; }
+  .pk-dial { margin-bottom: 24px; }   /* room for the absolute HOLD TO SHOOT caption above Sound/Reset */
 }
 /* ---- tablet portrait: board on top, bottom bar ---- */
 @container (min-width: 768px) and (max-width: 1023.98px) {
@@ -44,8 +52,8 @@
   .pk-marquee { display: block; grid-area: marquee; }
   .pk-board { grid-area: board; }
   .pk-panel { grid-area: panel; grid-template-columns: 110px 130px 1fr 1fr 96px; grid-template-areas: "tabs reels bank status dial" "tools reels best status dial"; align-items: center; border-left: 0; border-top: 2px solid var(--pk-accent); }
-  .pk-tabs { grid-area: tabs; flex-direction: column; } .pk-tabs button { height: 24px; }
-  .pk-reels { grid-area: reels; font-size: 28px; } .pk-bank { grid-area: bank; } .pk-best { grid-area: best; } .pk-status { grid-area: status; }
+  .pk-tabs { grid-area: tabs; flex-direction: column; } .pk-tabs button { height: 24px; } .pk-tabs .cab { width: 15px; height: 20px; }
+  .pk-reels { grid-area: reels; --reel-size: 28px; } .pk-bank { grid-area: bank; } .pk-best { grid-area: best; } .pk-status { grid-area: status; }
   .pk-dial { grid-area: dial; width: 84px; height: 84px; margin: 0; } .pk-tools { grid-area: tools; }
   .pk-dial .hint { display: none; }
 }
@@ -54,7 +62,7 @@
   .pk-shell { grid-template-rows: 56px auto auto auto 1fr; grid-template-areas: "strip" "board" "status" "tabs" "dial"; }
   .pk-panel { display: contents; }
   .pk-strip { grid-area: strip; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 0 12px; background: var(--pk-panel-bg); border-bottom: 2px solid var(--pk-accent); }
-  .pk-reels { font-size: 22px; border-radius: 0; }
+  .pk-reels { --reel-size: 22px; border-radius: 0; }
   .pk-bank, .pk-best { text-align: right; }
   .pk-num { font-size: 20px; }
   /* cap mirrors the other rows: strip 56, status max 70 (4 lines), tabs 34+4 pad, dial 96+6+8 margins */

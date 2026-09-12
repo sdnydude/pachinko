@@ -6,6 +6,8 @@ import { loadCel } from './cel';
 
 export interface EffectsLike { draw(ctx: CanvasRenderingContext2D, t: number): void }
 
+const TULIP_MS = 150;
+
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private cel: HTMLCanvasElement | null = null;
@@ -24,11 +26,6 @@ export class Renderer {
     this.canvas.style.width = `${cssW}px`; this.canvas.style.height = `${cssH}px`;
     this.scale = Math.min(cssW / BOARD_W, cssH / BOARD_H);
     this.ox = (cssW - BOARD_W * this.scale) / 2; this.oy = (cssH - BOARD_H * this.scale) / 2;
-  }
-
-  toBoard(clientX: number, clientY: number) {
-    const r = this.canvas.getBoundingClientRect();
-    return { x: (clientX - r.left - this.ox) / this.scale, y: (clientY - r.top - this.oy) / this.scale };
   }
 
   draw(s: Snapshot, effects?: EffectsLike): void {
@@ -58,7 +55,7 @@ export class Renderer {
       ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fillStyle = P.pinHi; ctx.fill(); ctx.restore();
     });
     // catchers
-    for (const c of L.catchers) this.drawCatcher(c, s.tulipOpen[c.id] ?? false);
+    for (const c of L.catchers) this.drawCatcher(c, this.tulipSpread(c.id, s.tulipOpen[c.id] ?? false, dt));
     // attacker
     const a = L.attacker;
     ctx.fillStyle = s.attackerOpen ? P.attackerOpen : P.attacker;
@@ -84,11 +81,20 @@ export class Renderer {
     ctx.restore();
   }
   private windmillAngle: number[] = [];
+  private tulipAnim: Record<string, number> = {};   // 0 closed .. 1 open, eased toward the snapshot state
 
-  private drawCatcher(c: Catcher, open: boolean): void {
+  /** Wings animate over TULIP_MS; the first frame snaps so a reload does not replay the open. */
+  private tulipSpread(id: string, open: boolean, dt: number): number {
+    const target = open ? 1 : 0; const cur = this.tulipAnim[id];
+    if (cur === undefined) return (this.tulipAnim[id] = target);
+    const step = dt * 1000 / TULIP_MS;
+    return (this.tulipAnim[id] = cur < target ? Math.min(target, cur + step) : Math.max(target, cur - step));
+  }
+
+  private drawCatcher(c: Catcher, spread: number): void {
     const { ctx } = this; const P = this.theme.palette;
     if (c.tulip) {
-      const hw = open ? c.tulip.openHalfWidth : c.tulip.closedHalfWidth;
+      const hw = c.tulip.closedHalfWidth + (c.tulip.openHalfWidth - c.tulip.closedHalfWidth) * spread;
       ctx.fillStyle = c.kind === 'start' ? P.pocketStart : P.tulipBody; ctx.fillRect(c.x - 8, c.y, 16, 14);
       ctx.strokeStyle = P.tulipWing; ctx.lineWidth = 4; ctx.lineCap = 'round';
       for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(c.x + side * 7, c.y); ctx.quadraticCurveTo(c.x + side * (hw + 4), c.y - 10, c.x + side * hw, c.y - 20); ctx.stroke(); }
