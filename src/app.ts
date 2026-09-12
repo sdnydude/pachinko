@@ -12,6 +12,8 @@ import { Panel } from './panel/panel';
 import { ensureFonts } from './panel/fonts';
 import './panel/panel.css';
 
+export type { MachineId } from './core/machine';
+
 export interface AppOptions { root: HTMLElement; storage: Storage; machine?: MachineId; seed?: number }
 
 export class App {
